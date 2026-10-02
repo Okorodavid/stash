@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stash Exit</title>
+<meta name="description" content="Withdraw from your Stash vault without the Stash app or servers. Talks directly to a public blockchain RPC.">
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#57534e; --card:#fff; --line:#e7e5e4; --accent:#0f766e; --warn:#b45309; --bad:#b91c1c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0c0a09; --fg:#f5f5f4; --muted:#a8a29e; --card:#1c1917; --line:#292524; --accent:#2dd4bf; --warn:#fbbf24; --bad:#f87171; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  p.lead { color:var(--muted); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  label { display:block; font-size:.875rem; color:var(--muted); margin:8px 0 4px; }
+  input, select, button { font:inherit; width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  button { background:var(--accent); color:#fff; border:none; font-weight:600; cursor:pointer; margin-top:10px; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .row { display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid var(--line); }
+  .row:last-child { border-bottom:none; }
+  .mono { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.8rem; word-break:break-all; }
+  .muted { color:var(--muted); font-size:.875rem; }
+  .warn { color:var(--warn); } .bad { color:var(--bad); }
+  #log { white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Stash Exit</h1>
+  <p class="lead">Withdraw from your Stash vault even if the Stash app and servers are gone. This page has no backend: it reads and writes the blockchain directly through a public RPC and your own wallet.</p>
+
+  <div class="card">
+    <label for="chain">Network</label>
+    <select id="chain"></select>
+    <button id="connect">Connect wallet (MetaMask, Rabby…)</button>
+    <p class="muted">Use the wallet that <b>owns</b> the vault: your exported Stash recovery key imported into a browser wallet. This page never asks you to paste a private key.</p>
+    <div id="who" class="mono"></div>
+  </div>
+
+  <div class="card" id="vaultCard" hidden>
+    <div class="row"><span>Vault</span><span id="vaultAddr" class="mono"></span></div>
+    <div class="row"><span>Status</span><span id="status"></span></div>
+    <div class="row"><span>Instant allowance left</span><span id="allowance"></span></div>
+    <div class="row"><span>Waiting period for large withdrawals</span><span id="timelock"></span></div>
+    <div id="balances"></div>
+
+    <label for="token">Token</label>
+    <select id="token"></select>
+    <label for="to">Send to</label>
+    <input id="to" class="mono" placeholder="0x… (defaults to your connected wallet)">
+    <label for="amount">Amount</label>
+    <input id="amount" inputmode="decimal" placeholder="e.g. 50">
+    <button id="instant">Withdraw instantly (within allowance)</button>
+    <button id="queue">Request large withdrawal (waits for the timelock)</button>
+  </div>
+
+  <div class="card" id="pendingCard" hidden>
+    <b>Queued withdrawals</b>
+    <div id="pending"></div>
+  </div>
+
+  <div class="card"><b>Log</b><div id="log" class="muted mono"></div></div>
+
+  <p class="muted">On Tempo there is no gas coin: fees are paid in a USD stablecoin from your wallet (pathUSD by default). Keep a few cents of pathUSD or OUSD in the connected wallet. Source: <a href="https://github.com/">Stash repository</a> · contracts are verified on each chain's explorer.</p>
+</main>
+
+<script type="module">
+import { createPublicClient, createWalletClient, custom, http, formatUnits, parseUnits, getAddress, isAddress } from "https://cdn.jsdelivr.net/npm/viem@2/+esm";
+
+// Filled in after deployment. Factory addresses are public; the page derives each user's vault from them.
+const NETWORKS = {
+  tempoModerato: { name: "Tempo Testnet (Moderato)", id: 42431, rpc: "https://rpc.moderato.tempo.xyz", explorer: "https://explore.testnet.tempo.xyz",
+    factory: "0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC",
+    tokens: [{ symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 }] },
+  tempo: { name: "Tempo", id: 4217, rpc: "https://rpc.tempo.xyz", explorer: "https://explore.tempo.xyz",
+    factory: "0x0000000000000000000000000000000000000000",
+    tokens: [] },
+  baseSepolia: { name: "Base Sepolia", id: 84532, rpc: "https://sepolia.base.org", explorer: "https://sepolia.basescan.org",
+    factory: "0x0000000000000000000000000000000000000000",
+    tokens: [] },
+  base: { name: "Base", id: 8453, rpc: "https://mainnet.base.org", explorer: "https://basescan.org",
+    factory: "0x0000000000000000000000000000000000000000",
+    tokens: [{ symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 }] },
+};
+
+const factoryAbi = [{ type: "function", name: "vaultOf", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ type: "address" }] }];
+const erc20Abi = [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] }];
+const vaultAbi = [
+  { type: "function", name: "frozen", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },
+  { type: "function", name: "remainingDailyLimit", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "available", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "policy", stateMutability: "view", inputs: [], outputs: [{ name: "timelock", type: "uint64" }, { name: "dailyLimit", type: "uint128" }, { name: "largeThreshold", type: "uint128" }] },
+  { type: "function", name: "nextWithdrawalId", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "pendingWithdrawals", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ name: "token", type: "address" }, { name: "unlockAt", type: "uint64" }, { name: "to", type: "address" }, { name: "amount", type: "uint128" }, { name: "guardianApproved", type: "bool" }] },
+  { type: "function", name: "withdraw", stateMutability: "nonpayable", inputs: [{ name: "token", type: "address" }, { name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [] },
+  { type: "function", name: "requestWithdrawal", stateMutability: "nonpayable", inputs: [{ name: "token", type: "address" }, { name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "executeWithdrawal", stateMutability: "nonpayable", inputs: [{ name: "id", type: "uint256" }], outputs: [] },
+];
+
+const $ = (id) => document.getElementById(id);
+const log = (m) => { $("log").textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + $("log").textContent; };
+let net, account, vault, publicClient, walletClient;
+
+for (const [key, n] of Object.entries(NETWORKS)) $("chain").add(new Option(n.name, key));
+$("chain").onchange = () => { if (account) load(); };
+
+$("connect").onclick = async () => {
+  if (!window.ethereum) return log("No browser wallet found. Install MetaMask or Rabby and import your Stash recovery key.");
+  [account] = await window.ethereum.request({ method: "eth_requestAccounts" });
+  account = getAddress(account);
+  $("who").textContent = `Connected: ${account}`;
+  load();
+};
+
+async function ensureChain() {
+  const hex = "0x" + net.id.toString(16);
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] });
+  } catch {
+    await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: hex, chainName: net.name, rpcUrls: [net.rpc], nativeCurrency: { name: "USD", symbol: "USD", decimals: 18 }, blockExplorerUrls: [net.explorer] }] });
+  }
+}
+
+async function load() {
+  net = NETWORKS[$("chain").value];
+  const chain = { id: net.id, name: net.name, nativeCurrency: { name: "USD", symbol: "USD", decimals: 18 }, rpcUrls: { default: { http: [net.rpc] } } };
+  publicClient = createPublicClient({ chain, transport: http(net.rpc) });
+  walletClient = createWalletClient({ chain, account, transport: custom(window.ethereum) });
+  if (/^0x0{40}$/.test(net.factory)) return log(`${net.name}: factory address not configured yet.`);
+  vault = await publicClient.readContract({ address: net.factory, abi: factoryAbi, functionName: "vaultOf", args: [account] });
+  if (/^0x0{40}$/i.test(vault)) { $("vaultCard").hidden = true; return log(`No vault owned by this wallet on ${net.name}.`); }
+  $("vaultCard").hidden = false; $("pendingCard").hidden = false;
+  $("vaultAddr").textContent = vault;
+  $("token").innerHTML = "";
+  for (const t of net.tokens) $("token").add(new Option(t.symbol, t.address));
+  await refresh();
+}
+
+async function refresh() {
+  const read = (functionName, args = []) => publicClient.readContract({ address: vault, abi: vaultAbi, functionName, args });
+  const [frozen, left, policy, nextId] = await Promise.all([read("frozen"), read("remainingDailyLimit"), read("policy"), read("nextWithdrawalId")]);
+  $("status").innerHTML = frozen ? '<span class="bad">Frozen by a guardian</span>' : "Active";
+  $("allowance").textContent = `$${Number(formatUnits(left, 18)).toFixed(2)}`;
+  $("timelock").textContent = `${Number(policy[0]) / 3600} h`;
+  const rows = await Promise.all(net.tokens.map(async (t) => {
+    const [bal, avail] = await Promise.all([
+      publicClient.readContract({ address: t.address, abi: erc20Abi, functionName: "balanceOf", args: [vault] }),
+      read("available", [t.address]),
+    ]);
+    return `<div class="row"><span>${t.symbol}</span><span>${formatUnits(avail, t.decimals)} available · ${formatUnits(bal, t.decimals)} total</span></div>`;
+  }));
+  $("balances").innerHTML = rows.join("");
+  const now = Math.floor(Date.now() / 1000);
+  const items = [];
+  for (let id = 0n; id < nextId; id++) {
+    const p = await read("pendingWithdrawals", [id]);
+    if (p[3] === 0n) continue;
+    const t = net.tokens.find((x) => x.address.toLowerCase() === p[0].toLowerCase());
+    const ready = now >= Number(p[1]);
+    items.push(`<div class="row"><span>#${id} · ${t ? formatUnits(p[3], t.decimals) + " " + t.symbol : p[3]} → <span class="mono">${p[2].slice(0, 10)}…</span><br><span class="muted">${ready ? "Ready" : "Unlocks " + new Date(Number(p[1]) * 1000).toLocaleString()}</span></span>${ready ? `<button data-id="${id}" class="exec" style="width:auto">Execute</button>` : ""}</div>`);
+  }
+  $("pending").innerHTML = items.join("") || '<p class="muted">None.</p>';
+  for (const b of document.querySelectorAll(".exec")) b.onclick = () => send("executeWithdrawal", [BigInt(b.dataset.id)]);
+}
+
+function formArgs() {
+  const t = net.tokens.find((x) => x.address === $("token").value);
+  const to = $("to").value.trim() || account;
+  if (!isAddress(to)) throw new Error("Destination is not a valid address.");
+  const amount = parseUnits($("amount").value.trim() || "0", t.decimals);
+  if (amount === 0n) throw new Error("Enter an amount.");
+  return [t.address, getAddress(to), amount];
+}
+
+async function send(functionName, args) {
+  try {
+    await ensureChain();
+    const hash = await walletClient.writeContract({ address: vault, abi: vaultAbi, functionName, args });
+    log(`${functionName} sent: ${hash}`);
+    await publicClient.waitForTransactionReceipt({ hash });
+    log(`${functionName} confirmed.`);
+    await refresh();
+  } catch (e) { log(`Error: ${e.shortMessage || e.message}`); }
+}
+
+$("instant").onclick = () => { try { send("withdraw", formArgs()); } catch (e) { log(e.message); } };
+$("queue").onclick = () => { try { send("requestWithdrawal", formArgs()); } catch (e) { log(e.message); } };
+</script>
+</body>
+</html>

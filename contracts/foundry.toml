@@ -1,0 +1,23 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.30"
+evm_version = "cancun" # lowest common target: Base (Cancun) and Tempo (Osaka); transient storage needs Cancun
+optimizer = true
+optimizer_runs = 200
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "forge-std/=lib/forge-std/src/",
+]
+
+[fuzz]
+runs = 512
+
+[rpc_endpoints]
+tempo = "${TEMPO_RPC_URL}"
+moderato = "${TEMPO_TESTNET_RPC_URL}"
+base = "${BASE_RPC_URL}"
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
