@@ -24,6 +24,22 @@ export type Pending = {
   guardianApproved: boolean;
 };
 
+export type Goal = {
+  id: number;
+  token: Address;
+  unlockAt: number;
+  breakFeeBps: number;
+  locked: bigint;
+};
+
+export type AutoSavePlan = {
+  token: Address;
+  interval: number; // seconds
+  goalId: number; // 0 = vault balance
+  amount: bigint;
+  nextAt: number;
+};
+
 export type VaultState = {
   vault: Address | null; // null = not created yet
   frozen: boolean;
@@ -33,6 +49,9 @@ export type VaultState = {
   guardians: Address[];
   balances: { token: Token; available: bigint; total: bigint; wallet: bigint }[];
   pending: Pending[];
+  goals: Goal[];
+  /** Auto-save plan where the user's own wallet is the paying source (null if none). */
+  autoSave: AutoSavePlan | null;
 };
 
 const net = NETWORKS[HOME];
@@ -70,6 +89,8 @@ export function useVault() {
         guardians: [],
         balances: net.tokens.map((token, i) => ({ token, available: 0n, total: 0n, wallet: walletBalances[i] })),
         pending: [],
+        goals: [],
+        autoSave: null,
       });
       return;
     }
@@ -79,13 +100,27 @@ export function useVault() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       publicClient.readContract({ address: vault, abi: stashVaultAbi, functionName, args } as any);
 
-    const [frozen, allowanceUsd, policy, guardians, nextId] = await Promise.all([
+    const [frozen, allowanceUsd, policy, guardians, nextId, goalCount, plan] = await Promise.all([
       read("frozen"),
       read("remainingDailyLimit"),
       read("policy"),
       read("guardians"),
       read("nextWithdrawalId"),
+      read("goalCount"),
+      read("autoSaves", [owner]),
     ]);
+    const goalIds = Array.from({ length: Math.min(Number(goalCount), 20) }, (_, i) => i + 1);
+    const goals: Goal[] = (await Promise.all(goalIds.map((id) => read("goals", [id])))).map((g, i) => ({
+      id: goalIds[i],
+      token: g[0],
+      unlockAt: Number(g[1]),
+      breakFeeBps: Number(g[2]),
+      locked: g[3],
+    }));
+    const autoSave: AutoSavePlan | null =
+      plan[4] === 0n
+        ? null
+        : { token: plan[0], interval: Number(plan[1]), goalId: Number(plan[2]), amount: plan[3], nextAt: Number(plan[4]) };
     const balances = await Promise.all(
       net.tokens.map(async (token, i) => {
         const [available, total] = await Promise.all([
@@ -119,13 +154,19 @@ export function useVault() {
       guardians,
       balances,
       pending,
+      goals,
+      autoSave,
     });
   }, [owner]);
 
   useEffect(() => {
-    refresh().catch((e) => setError(e.shortMessage ?? e.message));
+    // Only the first load reports errors; background refreshes stay quiet through RPC hiccups.
+    const first = setTimeout(() => refresh().catch((e) => setError(e.shortMessage ?? e.message)), 0);
     const t = setInterval(() => refresh().catch(() => {}), 15_000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, [refresh]);
 
   /** Sends one or more contract calls in order from the user's embedded wallet. */
@@ -168,6 +209,13 @@ export function useVault() {
   );
 
   const vault = state?.vault ?? null;
+  const allowanceOf = (token: Token) =>
+    publicClient.readContract({
+      address: token.address,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [owner as Address, vault as Address],
+    });
   const v = (functionName: string, args: readonly unknown[]) => ({
     address: vault as Address,
     abi: stashVaultAbi,
@@ -185,11 +233,30 @@ export function useVault() {
           args: [guardians, DEFAULT_POLICY],
         },
       ]),
-    deposit: (token: Token, amount: bigint) =>
-      send("Saving", [
-        { address: token.address, abi: erc20Abi, functionName: "approve", args: [vault, amount] },
+    deposit: async (token: Token, amount: bigint) => {
+      // Add to (not overwrite) any existing allowance, so an active auto-save keeps working.
+      const current = await allowanceOf(token);
+      return send("Saving", [
+        { address: token.address, abi: erc20Abi, functionName: "approve", args: [vault, current + amount] },
         v("deposit", [token.address, amount]),
-      ]),
+      ]);
+    },
+    createGoal: (token: Token, unlockAt: number, breakFeeBps: number) =>
+      send("Creating goal", [v("createGoal", [token.address, BigInt(unlockAt), breakFeeBps])]),
+    fundGoal: (id: number, amount: bigint) => send("Locking savings", [v("fundGoal", [id, amount])]),
+    releaseGoal: (id: number) => send("Unlocking goal", [v("releaseGoal", [id])]),
+    /** The paying wallet is the user's own wallet: it approves a year of pulls, then opts in. */
+    startAutoSave: async (token: Token, amount: bigint, interval: number, goalId: number) => {
+      const current = await allowanceOf(token);
+      const yearOfPulls = amount * BigInt(Math.ceil((365 * 86400) / interval));
+      return send("Starting auto-save", [
+        { address: token.address, abi: erc20Abi, functionName: "approve", args: [vault, current + yearOfPulls] },
+        v("authorizeAutoSave", [token.address, amount, BigInt(interval), goalId]),
+      ]);
+    },
+    stopAutoSave: () => send("Stopping auto-save", [v("revokeAutoSave", [owner])]),
+    /** Normally the worker does this on schedule; anyone may trigger a due pull. */
+    runAutoSaveNow: () => send("Running auto-save", [v("pullAutoSave", [owner])]),
     withdraw: (token: Token, to: Address, amount: bigint) => send("Sending", [v("withdraw", [token.address, to, amount])]),
     requestWithdrawal: (token: Token, to: Address, amount: bigint) =>
       send("Starting 24h wait", [v("requestWithdrawal", [token.address, to, amount])]),

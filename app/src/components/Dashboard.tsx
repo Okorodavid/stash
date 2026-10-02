@@ -10,23 +10,11 @@ import {
   type Address,
 } from "viem";
 import { STASH_GUARDIAN } from "@/lib/config";
-import { useVault, type Pending, type VaultState } from "@/lib/useVault";
+import { useVault, type Pending } from "@/lib/useVault";
+import { useNow } from "@/lib/useNow";
+import { AutoSaveCard, GoalsCard } from "./Savings";
+import { btn, btnGhost, card, input, short, usd, type Loaded } from "./ui";
 
-const usd = (v: bigint, decimals: number) =>
-  Number(formatUnits(v, decimals)).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-  });
-const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-const card = "rounded-2xl border border-line bg-card p-4";
-const btn =
-  "w-full rounded-xl bg-accent px-4 py-3 font-semibold text-accent-fg disabled:opacity-50";
-const btnGhost =
-  "rounded-lg border border-line px-3 py-2 text-sm font-medium disabled:opacity-50";
-const input = "w-full rounded-xl border border-line bg-background px-3 py-3";
-
-type Ctx = ReturnType<typeof useVault>;
-type Loaded = Ctx & { state: VaultState };
 
 export default function Dashboard() {
   const { logout } = usePrivy();
@@ -96,6 +84,8 @@ function Vault({ ctx }: { ctx: Loaded }) {
         </p>
       </section>
       <SaveCard ctx={ctx} />
+      <GoalsCard ctx={ctx} />
+      <AutoSaveCard ctx={ctx} />
       <SendCard ctx={ctx} />
       {s.pending.length > 0 && <PendingCard ctx={ctx} />}
       <GuardiansCard ctx={ctx} />
@@ -199,14 +189,14 @@ function SendCard({ ctx }: { ctx: Loaded }) {
 function PendingCard({ ctx }: { ctx: Loaded }) {
   const { state, busy, actions } = ctx;
   const pending: Pending[] = state.pending;
-  const now = Date.now() / 1000;
+  const now = useNow();
   const t = state.balances[0].token;
   return (
     <section className={card}>
       <p className="mb-2 font-medium">Waiting withdrawals</p>
       <ul className="space-y-3">
         {pending.map((p) => {
-          const ready = now >= p.unlockAt;
+          const ready = now > 0 && now >= p.unlockAt;
           return (
             <li
               key={p.id.toString()}
