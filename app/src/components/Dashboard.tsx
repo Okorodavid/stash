@@ -14,6 +14,8 @@ import { useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
 import RecoveryCard from "./Recovery";
 import SavePotCard from "./SavePot";
+import PotInfo from "./PotInfo";
+import { useSavePot } from "@/lib/useSavePot";
 import dynamic from "next/dynamic";
 
 // Solana code is heavy; load it after the vault screen is up.
@@ -68,10 +70,12 @@ export default function Dashboard() {
 
 function Vault({ ctx }: { ctx: Loaded }) {
   const { state: s, busy, actions } = ctx;
+  const pot = useSavePot();
   const total = s.balances.reduce(
     (sum, b) => sum + Number(formatUnits(b.total, b.token.decimals)),
     0,
   );
+  const saveTotal = pot.state ? Number(formatUnits(pot.state.idle + pot.state.earning, pot.usdc.decimals)) : 0;
   return (
     <>
       <section className={card}>
@@ -91,12 +95,13 @@ function Vault({ ctx }: { ctx: Loaded }) {
             <>Instant send left today: {usd(s.allowanceUsd, 18)}</>
           )}
         </p>
+        <PotInfo pot="vault" />
       </section>
       {ctx.owner && <RecoveryCard owner={ctx.owner} />}
       <SaveCard ctx={ctx} />
       <GoalsCard ctx={ctx} />
-      <SavePotCard home={ctx} />
-      <GrowthPotCard />
+      <SavePotCard home={ctx} pot={pot} />
+      <GrowthPotCard otherSavingsUsd={total + saveTotal} />
       <AutoSaveCard ctx={ctx} />
       <SendCard ctx={ctx} />
       {s.pending.length > 0 && <PendingCard ctx={ctx} />}

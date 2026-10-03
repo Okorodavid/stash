@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { formatUnits, parseUnits } from "viem";
-import { useSavePot } from "@/lib/useSavePot";
+import type { useSavePot } from "@/lib/useSavePot";
+import PotInfo from "./PotInfo";
 import { useNow } from "@/lib/useNow";
 import { btn, btnGhost, card, input, usd, type Loaded } from "./ui";
 
-export default function SavePotCard({ home }: { home: Loaded }) {
-  const { enabled, network, usdc, state, busy, error, actions } = useSavePot();
+export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnType<typeof useSavePot> }) {
+  const { enabled, network, usdc, state, busy, error, actions } = pot;
   const [amount, setAmount] = useState("");
   const [out, setOut] = useState("");
   const now = useNow();
@@ -43,6 +44,7 @@ export default function SavePotCard({ home }: { home: Loaded }) {
         </button>
         {busy && <p className="mt-2 text-sm">{busy}…</p>}
         {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+        <PotInfo pot="save" />
       </section>
     );
   }
@@ -124,6 +126,7 @@ export default function SavePotCard({ home }: { home: Loaded }) {
           })}
         </ul>
       )}
+      <PotInfo pot="save" />
     </section>
   );
 }
