@@ -89,13 +89,23 @@ function Vault({ ctx }: { ctx: Loaded }) {
       <SendCard ctx={ctx} />
       {s.pending.length > 0 && <PendingCard ctx={ctx} />}
       <GuardiansCard ctx={ctx} />
-      <button
-        className={`${btnGhost} w-full text-danger`}
-        disabled={!!busy || s.frozen}
-        onClick={() => actions.freeze()}
-      >
-        Freeze my vault (emergency stop)
-      </button>
+      {s.frozen ? (
+        <section className={card}>
+          <p className="font-medium">Your vault is frozen</p>
+          <p className="mt-1 text-sm text-muted">
+            {s.unfreezeApprovedBy
+              ? `Guardian ${short(s.unfreezeApprovedBy)} approved unfreezing.`
+              : "To unfreeze, ask one of your guardians to approve it from their guardian link. This stops a thief with your login from undoing a freeze."}
+          </p>
+          <button className={`${btn} mt-2`} disabled={!!busy || !s.unfreezeApprovedBy} onClick={() => actions.unfreeze()}>
+            Unfreeze
+          </button>
+        </section>
+      ) : (
+        <button className={`${btnGhost} w-full text-danger`} disabled={!!busy} onClick={() => actions.freeze()}>
+          Freeze my vault (emergency stop)
+        </button>
+      )}
     </>
   );
 }
@@ -251,6 +261,7 @@ function GuardiansCard({ ctx }: { ctx: Loaded }) {
         Any guardian can stop a withdrawal or freeze your vault. None can take
         your money.
       </p>
+      <GuardianLink vault={ctx.state.vault!} />
       <ul className="mb-2 space-y-1 font-mono text-sm">
         {guardians.map((a) => (
           <li key={a}>
@@ -329,12 +340,44 @@ function CreateVault({
 }
 
 function Footer({ owner, onLogout }: { owner?: string; onLogout: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    if (!owner) return;
+    try {
+      await navigator.clipboard.writeText(owner);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      prompt("Your wallet address:", owner);
+    }
+  };
   return (
     <footer className="flex items-center justify-between pt-2 text-xs text-muted">
-      <span className="font-mono">{owner ? short(owner) : ""}</span>
+      <button className="font-mono underline" onClick={copy} disabled={!owner} title={owner}>
+        {owner ? (copied ? "Address copied ✓" : `${short(owner)} · copy address`) : ""}
+      </button>
       <button className="underline" onClick={onLogout}>
         Sign out
       </button>
     </footer>
+  );
+}
+
+function GuardianLink({ vault }: { vault: string }) {
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = `${window.location.origin}/guardian?vault=${vault}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "Guard my Stash savings", url });
+      else await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // Share sheet dismissed: nothing to do.
+    }
+  };
+  return (
+    <button className={`${btnGhost} mb-3 w-full`} onClick={share}>
+      {copied ? "Guardian link copied ✓" : "Share guardian link"}
+    </button>
   );
 }

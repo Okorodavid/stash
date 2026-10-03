@@ -1,28 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useWallets } from "@privy-io/react-auth";
-import {
-  createPublicClient,
-  createWalletClient,
-  custom,
-  encodeFunctionData,
-  http,
-  zeroAddress,
-  type Address,
-  type Hash,
-} from "viem";
-import { erc20Abi, stashFactoryAbi, stashVaultAbi } from "./abis";
-import { DEFAULT_POLICY, HOME, NETWORKS, type Token } from "./config";
+import { useCallback, useEffect, useState } from "react";
+import { zeroAddress, type Address } from "viem";
+import { erc20Abi, stashFactoryAbi } from "./abis";
+import { net, publicClient, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
+import { DEFAULT_POLICY, type Token } from "./config";
+import { useSender } from "./useSender";
 
-export type Pending = {
-  id: bigint;
-  token: Address;
-  to: Address;
-  amount: bigint;
-  unlockAt: number;
-  guardianApproved: boolean;
-};
+export type { Pending };
 
 export type Goal = {
   id: number;
@@ -43,6 +28,8 @@ export type AutoSavePlan = {
 export type VaultState = {
   vault: Address | null; // null = not created yet
   frozen: boolean;
+  /** Guardian who approved an unfreeze (owner can then unfreeze), or null. */
+  unfreezeApprovedBy: Address | null;
   allowanceUsd: bigint; // 18 decimals
   largeThresholdUsd: bigint;
   timelock: number; // seconds
@@ -54,17 +41,11 @@ export type VaultState = {
   autoSave: AutoSavePlan | null;
 };
 
-const net = NETWORKS[HOME];
-const publicClient = createPublicClient({ chain: net.chain, transport: http() });
-
+/** The signed-in user's own vault: state plus owner actions. */
 export function useVault() {
-  const { wallets, ready } = useWallets();
-  const wallet = useMemo(() => wallets.find((w) => w.walletClientType === "privy") ?? wallets[0], [wallets]);
-  const owner = wallet?.address as Address | undefined;
-
+  const sender = useSender();
+  const { ready, account: owner, busy, error, setError } = sender;
   const [state, setState] = useState<VaultState | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!owner || !net.factory) return;
@@ -83,6 +64,7 @@ export function useVault() {
       setState({
         vault: null,
         frozen: false,
+        unfreezeApprovedBy: null,
         allowanceUsd: 0n,
         largeThresholdUsd: DEFAULT_POLICY.largeThreshold,
         timelock: Number(DEFAULT_POLICY.timelock),
@@ -94,14 +76,11 @@ export function useVault() {
       });
       return;
     }
-    // Loosely typed on purpose: the ABI is generated, and results are shaped right below.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const read = (functionName: string, args: readonly unknown[] = []): Promise<any> =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      publicClient.readContract({ address: vault, abi: stashVaultAbi, functionName, args } as any);
+    const read = (fn: string, args: readonly unknown[] = []) => readVault(vault, fn, args);
 
-    const [frozen, allowanceUsd, policy, guardians, nextId, goalCount, plan] = await Promise.all([
+    const [frozen, approver, allowanceUsd, policy, guardians, nextId, goalCount, plan] = await Promise.all([
       read("frozen"),
+      read("unfreezeApprovedBy"),
       read("remainingDailyLimit"),
       read("policy"),
       read("guardians"),
@@ -130,30 +109,17 @@ export function useVault() {
         return { token, available, total, wallet: walletBalances[i] };
       }),
     );
-    // Newest first; stop after the last 20 ids to keep this fast.
-    const ids: bigint[] = [];
-    for (let id = (nextId as bigint) - 1n; id >= 0n && ids.length < 20; id--) ids.push(id);
-    const raw = await Promise.all(ids.map((id) => read("pendingWithdrawals", [id])));
-    const pending: Pending[] = raw
-      .map((p, i) => ({
-        id: ids[i],
-        token: p[0] as Address,
-        unlockAt: Number(p[1]),
-        to: p[2] as Address,
-        amount: p[3] as bigint,
-        guardianApproved: p[4] as boolean,
-      }))
-      .filter((p) => p.amount > 0n);
 
     setState({
       vault,
       frozen,
+      unfreezeApprovedBy: approver === zeroAddress ? null : approver,
       allowanceUsd,
       largeThresholdUsd: policy[2],
       timelock: Number(policy[0]),
       guardians,
       balances,
-      pending,
+      pending: await readPending(vault, nextId),
       goals,
       autoSave,
     });
@@ -167,48 +133,16 @@ export function useVault() {
       clearTimeout(first);
       clearInterval(t);
     };
-  }, [refresh]);
+  }, [refresh, setError]);
 
-  /** Sends one or more contract calls in order from the user's embedded wallet. */
-  const send = useCallback(
-    async (label: string, calls: { address: Address; abi: readonly unknown[]; functionName: string; args: readonly unknown[] }[]) => {
-      if (!wallet || !owner) return;
-      setBusy(label);
-      setError(null);
-      try {
-        await wallet.switchChain(net.chain.id);
-        const walletClient = createWalletClient({
-          account: owner,
-          chain: net.chain,
-          transport: custom(await wallet.getEthereumProvider()),
-        });
-        let hash: Hash | undefined;
-        for (const call of calls) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const data = encodeFunctionData(call as any);
-          // Tempo's estimate undercounts its expensive new-storage writes (250k gas per slot),
-          // so pad it; otherwise e.g. createVault runs out of gas.
-          const estimate = await publicClient.estimateGas({ account: owner, to: call.address, data });
-          // Read the nonce from the chain ourselves: Privy's own count can lag behind after a
-          // reverted transaction (reverts still consume a nonce), causing "nonce too low".
-          const nonce = await publicClient.getTransactionCount({ address: owner, blockTag: "pending" });
-          hash = await walletClient.sendTransaction({ to: call.address, data, gas: (estimate * 3n) / 2n, nonce });
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
-          if (receipt.status !== "success") throw new Error(`${label} failed on-chain (tx ${hash}).`);
-        }
-        await refresh();
-        return hash;
-      } catch (e) {
-        const err = e as { shortMessage?: string; message: string };
-        setError(err.shortMessage ?? err.message);
-      } finally {
-        setBusy(null);
-      }
-    },
-    [wallet, owner, refresh],
-  );
+  const send = async (label: string, calls: Call[]) => {
+    const hash = await sender.send(label, calls);
+    if (hash) await refresh();
+    return hash;
+  };
 
   const vault = state?.vault ?? null;
+  const v = (functionName: string, args: readonly unknown[] = []) => vaultCall(vault as Address, functionName, args);
   const allowanceOf = (token: Token) =>
     publicClient.readContract({
       address: token.address,
@@ -216,12 +150,6 @@ export function useVault() {
       functionName: "allowance",
       args: [owner as Address, vault as Address],
     });
-  const v = (functionName: string, args: readonly unknown[]) => ({
-    address: vault as Address,
-    abi: stashVaultAbi,
-    functionName,
-    args,
-  });
 
   const actions = {
     createVault: (guardians: Address[]) =>
@@ -262,7 +190,8 @@ export function useVault() {
       send("Starting 24h wait", [v("requestWithdrawal", [token.address, to, amount])]),
     executeWithdrawal: (id: bigint) => send("Releasing", [v("executeWithdrawal", [id])]),
     cancelWithdrawal: (id: bigint) => send("Cancelling", [v("cancelWithdrawal", [id])]),
-    freeze: () => send("Freezing", [v("freeze", [])]),
+    freeze: () => send("Freezing", [v("freeze")]),
+    unfreeze: () => send("Unfreezing", [v("unfreeze")]),
     addGuardian: (g: Address) => send("Adding guardian", [v("addGuardian", [g])]),
   };
 
