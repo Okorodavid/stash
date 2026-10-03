@@ -13,6 +13,7 @@ import { STASH_GUARDIAN } from "@/lib/config";
 import { useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
 import RecoveryCard from "./Recovery";
+import AlertsButton from "./AlertsButton";
 import SavePotCard from "./SavePot";
 import PotInfo from "./PotInfo";
 import { useSavePot } from "@/lib/useSavePot";
@@ -279,6 +280,9 @@ function GuardiansCard({ ctx }: { ctx: Loaded }) {
         your money.
       </p>
       <GuardianLink vault={ctx.state.vault!} />
+      <div className="mb-3">
+        <AlertsButton label="Get Telegram alerts for my vault" />
+      </div>
       <ul className="mb-2 space-y-1 font-mono text-sm">
         {guardians.map((a) => (
           <li key={a}>

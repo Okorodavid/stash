@@ -61,3 +61,21 @@ export async function updateCustomMetadata(userId: string, metadata: Record<stri
   });
   if (!res.ok) throw new Error(`Privy metadata update failed (${res.status})`);
 }
+
+/** The user's Privy-managed (embedded) Ethereum wallet address, looked up server-side. */
+export async function embeddedEthereumAddress(userId: string): Promise<string | null> {
+  const res = await fetch(`https://api.privy.io/v1/users/${encodeURIComponent(userId)}`, {
+    headers: {
+      "privy-app-id": APP_ID,
+      Authorization: `Basic ${Buffer.from(`${APP_ID}:${APP_SECRET}`).toString("base64")}`,
+    },
+  });
+  if (!res.ok) throw new Error(`Privy user lookup failed (${res.status})`);
+  const user = (await res.json()) as {
+    linked_accounts?: { type: string; chain_type?: string; wallet_client_type?: string; address?: string }[];
+  };
+  const wallet = user.linked_accounts?.find(
+    (a) => a.type === "wallet" && a.chain_type === "ethereum" && a.wallet_client_type === "privy",
+  );
+  return wallet?.address ?? null;
+}

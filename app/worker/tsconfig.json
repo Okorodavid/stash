@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "./**/*.ts",
+    "../src/lib/abis.ts",
+    "../src/lib/config.ts",
+    "../src/lib/linkCode.ts"
+  ],
+  "exclude": []
+}

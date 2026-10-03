@@ -5,6 +5,7 @@ import type { Address } from "viem";
 import { net } from "@/lib/chain";
 import { useGuardian } from "@/lib/useGuardian";
 import { useNow } from "@/lib/useNow";
+import AlertsButton from "./AlertsButton";
 import { btn, btnGhost, card, short, usd } from "./ui";
 
 const money = (v: bigint) => usd(v, 18);
@@ -38,6 +39,8 @@ export default function GuardianView({ vault }: { vault: Address }) {
           </p>
         )}
       </section>
+
+      {isGuardian && <AlertsButton label="Alert me on Telegram if something happens" />}
 
       {busy && <p className="rounded-xl bg-accent/10 px-3 py-2 text-sm">{busy}…</p>}
       {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}

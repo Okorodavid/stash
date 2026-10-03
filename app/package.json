@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "worker": "node --env-file-if-exists=.env.local --env-file-if-exists=worker/.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON worker/index.ts"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.46.0",
