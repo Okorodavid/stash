@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useExportWallet } from "@privy-io/react-auth";
+import { useExportWallet, usePrivy, useUser } from "@privy-io/react-auth";
 import { btn, btnGhost, card } from "./ui";
 
 // Where the stand-alone exit page is hosted (independent of the Stash app and servers).
@@ -9,29 +9,42 @@ const EXIT_URL = process.env.NEXT_PUBLIC_EXIT_URL;
 
 const flagKey = (owner: string) => `stash:recovery-saved:${owner.toLowerCase()}`;
 
-/** Whether this browser has seen the user confirm a backup. Only a reminder; we can't verify it. */
+/**
+ * Whether the user confirmed an offline backup. Stored on their Privy account (so it follows them
+ * across browsers and devices) with this browser as a fallback. A reminder only: we can't verify it.
+ */
 function useBackedUp(owner: string) {
-  const [saved, setSaved] = useState<boolean | null>(null);
+  const { getAccessToken } = usePrivy();
+  const { user, refreshUser } = useUser();
+  const onAccount = user?.customMetadata?.recovery_backed_up === true;
+  const [local, setLocal] = useState<boolean | null>(null);
   useEffect(() => {
     const read = () => {
       try {
-        setSaved(localStorage.getItem(flagKey(owner)) === "1");
+        setLocal(localStorage.getItem(flagKey(owner)) === "1");
       } catch {
-        setSaved(false);
+        setLocal(false);
       }
     };
     const t = setTimeout(read, 0);
     return () => clearTimeout(t);
   }, [owner]);
-  const confirm = () => {
+  const confirm = async () => {
     try {
       localStorage.setItem(flagKey(owner), "1");
     } catch {
-      // Storage blocked: the reminder will just show again next visit.
+      // Storage blocked: the account flag below still covers it.
     }
-    setSaved(true);
+    setLocal(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/recovery", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) await refreshUser();
+    } catch {
+      // Offline or server not configured: this browser still remembers.
+    }
   };
-  return { saved, confirm };
+  return { saved: onAccount ? true : local, confirm };
 }
 
 export default function RecoveryCard({ owner }: { owner: string }) {

@@ -2,13 +2,15 @@
 
 import { PrivyProvider, usePrivy } from "@privy-io/react-auth";
 import type { Address } from "viem";
-import { HOME, NETWORKS } from "@/lib/config";
+import { HOME, NETWORKS, SAVE } from "@/lib/config";
 import Intro from "./Intro";
 import Dashboard from "./Dashboard";
 import GuardianView from "./GuardianView";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 const chain = NETWORKS[HOME].chain;
+// The Save pot lives on a second chain; Privy must know it to switch the embedded wallet there.
+const chains = NETWORKS[SAVE].factory ? [chain, NETWORKS[SAVE].chain] : [chain];
 
 /** `guardianOf` set = guardian screen for that vault; otherwise the user's own vault. */
 export default function StashApp({ guardianOf }: { guardianOf?: Address }) {
@@ -26,7 +28,7 @@ export default function StashApp({ guardianOf }: { guardianOf?: Address }) {
           ethereum: { createOnLogin: "users-without-wallets" },
         },
         defaultChain: chain,
-        supportedChains: [chain],
+        supportedChains: chains,
       }}
     >
       <Gate guardianOf={guardianOf} />

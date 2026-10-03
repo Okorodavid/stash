@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useWallets } from "@privy-io/react-auth";
 import { createWalletClient, custom, encodeFunctionData, type Address, type Hash } from "viem";
-import { net, publicClient, type Call } from "./chain";
+import { clientFor, type Call } from "./chain";
+import { HOME, NETWORKS, type NetworkKey } from "./config";
 
 /** The signed-in user's embedded wallet, plus a safe way to send calls from it. */
 export function useSender() {
@@ -13,19 +14,27 @@ export function useSender() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  /** Sends calls in order, waiting for each to confirm. Returns the last hash, or undefined on failure. */
+  /** Sends calls in order on the given network, waiting for each to confirm. Returns the last hash, or undefined on failure. */
   const send = useCallback(
-    async (label: string, calls: Call[]) => {
+    async (label: string, calls: Call[], key: NetworkKey = HOME) => {
       if (!wallet || !account) return;
+      const { chain } = NETWORKS[key];
+      const publicClient = clientFor(key);
       setBusy(label);
       setError(null);
       try {
-        await wallet.switchChain(net.chain.id);
-        const walletClient = createWalletClient({
-          account,
-          chain: net.chain,
-          transport: custom(await wallet.getEthereumProvider()),
-        });
+        // Privy's switchChain can resolve before its provider reflects the new chain, so switch
+        // through the provider and wait until it actually reports the target chain.
+        const provider = await wallet.getEthereumProvider();
+        const target = `0x${chain.id.toString(16)}`;
+        await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: target }] });
+        for (let i = 0; ; i++) {
+          const current = (await provider.request({ method: "eth_chainId" })) as string;
+          if (parseInt(current, 16) === chain.id) break;
+          if (i >= 20) throw new Error(`Could not switch your wallet to ${chain.name}. Please try again.`);
+          await new Promise((r) => setTimeout(r, 150));
+        }
+        const walletClient = createWalletClient({ account, chain, transport: custom(provider) });
         let hash: Hash | undefined;
         for (const call of calls) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

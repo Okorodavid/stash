@@ -39,6 +39,9 @@ export type NetworkKey = keyof typeof NETWORKS;
 
 export const HOME: NetworkKey = (process.env.NEXT_PUBLIC_HOME_NETWORK as NetworkKey) || "tempoModerato";
 
+/** Network hosting the Save pot (Base). Off when its factory isn't configured. */
+export const SAVE: NetworkKey = (process.env.NEXT_PUBLIC_SAVE_NETWORK as NetworkKey) || "baseSepolia";
+
 /** Stash service guardian, added to every new vault by default. Its key lives only in the worker. */
 export const STASH_GUARDIAN = env(process.env.NEXT_PUBLIC_STASH_GUARDIAN);
 
