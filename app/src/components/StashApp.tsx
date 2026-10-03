@@ -2,6 +2,8 @@
 
 import { PrivyProvider, usePrivy } from "@privy-io/react-auth";
 import type { Address } from "viem";
+import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
+import { SOLANA_RPC } from "@/lib/growth";
 import { HOME, NETWORKS, SAVE } from "@/lib/config";
 import Intro from "./Intro";
 import Dashboard from "./Dashboard";
@@ -23,9 +25,17 @@ export default function StashApp({ guardianOf }: { guardianOf?: Address }) {
       config={{
         loginMethods: ["email", "google"],
         appearance: { theme: "light", accentColor: "#0f766e", landingHeader: "Sign in to Stash" },
-        // Solana wallet creation is added with the Growth pot (needs Privy's Solana connectors + peer deps).
         embeddedWallets: {
           ethereum: { createOnLogin: "users-without-wallets" },
+          solana: { createOnLogin: "users-without-wallets" }, // Growth pot (Solana mainnet)
+        },
+        solana: {
+          rpcs: {
+            "solana:mainnet": {
+              rpc: createSolanaRpc(SOLANA_RPC),
+              rpcSubscriptions: createSolanaRpcSubscriptions(SOLANA_RPC.replace(/^http/, "ws")),
+            },
+          },
         },
         defaultChain: chain,
         supportedChains: chains,

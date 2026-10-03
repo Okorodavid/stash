@@ -14,6 +14,13 @@ import { useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
 import RecoveryCard from "./Recovery";
 import SavePotCard from "./SavePot";
+import dynamic from "next/dynamic";
+
+// Solana code is heavy; load it after the vault screen is up.
+const GrowthPotCard = dynamic(() => import("./GrowthPot"), {
+  ssr: false,
+  loading: () => <section className="rounded-2xl border border-line bg-card p-4 text-sm text-muted">Loading Growth pot…</section>,
+});
 import { AutoSaveCard, GoalsCard } from "./Savings";
 import { btn, btnGhost, card, input, short, usd, type Loaded } from "./ui";
 
@@ -89,6 +96,7 @@ function Vault({ ctx }: { ctx: Loaded }) {
       <SaveCard ctx={ctx} />
       <GoalsCard ctx={ctx} />
       <SavePotCard home={ctx} />
+      <GrowthPotCard />
       <AutoSaveCard ctx={ctx} />
       <SendCard ctx={ctx} />
       {s.pending.length > 0 && <PendingCard ctx={ctx} />}

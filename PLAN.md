@@ -5,7 +5,7 @@
 
 ## The pitch (one line)
 
-**A dollar savings app that can't be drained: your everyday dollars live on Tempo, your savings earn on Base, and your "Growth" pot sits in Reflect's Protected tranche on Solana — all behind one login, daily limits, and time-locked withdrawals any of your guardians can cancel.**
+**A dollar savings app that can't be drained: your everyday dollars live on Tempo, your savings earn on Base, and your "Growth" pot earns on Solana — all behind one login, daily limits, and time-locked withdrawals any of your guardians can cancel.**
 
 Target market: **anyone in the world** who wants to save in dollars and not lose it to theft — especially people whose local currency is losing value. No country-specific features in the core product; local on-ramps plug in per region later.
 
@@ -17,7 +17,7 @@ Users never pick a chain. The app routes money to whichever chain is best for th
 |---|---|---|---|
 | **Tempo** (home) | Main dollar account: hold, send, receive, timelocked vault | Payments chain: free/sponsored fees, passkeys, stablecoin-native, OUSD just launched | OUSD, our Solidity vault, fee sponsorship, Privy |
 | **Base** | "Save" pot — steady yield | Deep DeFi lending (Morpho), Coinbase users and on-ramp | Same Solidity vault, USDC, curated Morpho ERC-4626 vault (deposited **from inside** the vault, so the Save pot stays protected) |
-| **Solana** | "Growth" pot — higher yield with loss protection | Only place Reflect's Protected tranche exists | Reflect API/SDK (USDC+ / srUSDC), Squads spending limit |
+| **Solana** | "Growth" pot — higher yield | Reflect's Protected tranche lives here (if live and isolated from USDC+'s Drift loss); otherwise deep Solana lending (Kamino) | Reflect tranche API **or** Kamino USDC vault, Squads spending limit |
 
 ## Competitors and user pain
 
@@ -41,8 +41,9 @@ Research done 2026-10-02 (Trustpilot, app stores, tech press, news). Nobody comb
 | 6 | Shutdowns and bans (Loopring, Daimo, Risevest/Binance crackdowns) | Open-source contracts + exit page that works without Stash |
 | 7 | Recovery lockouts; single guardian hacked (Loopring ~$5M) | Up to 3 guardians; Stash guardian kept separate from login |
 | 8 | Drained anyway via approvals/phishing/front end (Bybit $1.5B via Safe UI) | No arbitrary approvals/calls; over-limit outflows always timelocked |
+| 9 | Yield protocol behind the product gets hacked → funds frozen, partial payback (Reflect USDC+: ~$1.95M lost in the Apr 2026 Drift exploit, mint/redeem frozen ~3 months, buyback at 0.20 USDC + 80 Reflect Credits per USDC+) | Our vault stops thieves, **not** protocol hacks — so: cap each pot, spread savings across pots, show in the app which protocol each pot depends on and its history. Tempo home account holds plain OUSD (no yield protocol) |
 
-Pitch line: **"Dollar safety you control" — not an APY pitch.**
+Pitch line: **"Dollar safety you control" — not an APY pitch.** Second line: "Stash stops thieves, and spreads your savings so no single protocol hack wipes you out."
 
 ## Scope
 
@@ -50,12 +51,13 @@ Pitch line: **"Dollar safety you control" — not an APY pitch.**
 1. One login (Privy, email/Google) → user gets a Tempo/Base address and a Solana address.
 2. **Vault contract (Solidity) on Tempo**: daily limit, timelocked large withdrawals, multiple guardians (any one can cancel/freeze), timelocked policy loosening, savings goals with early-break fee.
 3. **Same vault deployed on Base**, with "Save" pot depositing into a curated Morpho vault via the vault's own `depositToYield` (shares stay inside the vault, so limits/timelock still protect them). Privy Earn is not used here: it deposits from the user's wallet, outside the vault's protection.
-4. **Solana "Growth" pot** via Reflect (Protected/senior tranche; USDC+ as fallback).
+4. **Solana "Growth" pot** via Reflect's Protected tranche **only if** Reflect confirms it's live and separate from USDC+'s Drift loss; otherwise a curated Kamino USDC vault. **USDC+ is not a fallback** (frozen since the Apr 2026 Drift exploit).
 5. One dashboard showing all three pots in dollars.
 6. Drain-simulation demo on Tempo.
 7. **Auto-save from another wallet** (Tempo/Base): "save $X every day/week from wallet Y into goal Z".
 8. **Guardian setup** in onboarding: Stash guardian on by default, then prompt to add a second phone and/or a trusted person.
 9. **Exit page**: a static, open-source page (hosted on GitHub Pages/IPFS, no Stash backend) that lets a user withdraw straight from their vault using only a public RPC — "even if Stash disappears, your money gets out." **Requires a recovery key the user controls**: onboarding must include "save your recovery key" (Privy key export into a wallet like MetaMask/Rabby), or the user signs up with their own wallet. The exit page only connects browser wallets; it never asks for a pasted key. Built: `exit/index.html`.
+10. **Pot safety info + caps**: each pot shows the protocol it depends on, its curator/history and the live rate. Default cap: Growth pot ≤ 50% of a user's savings, set in the app (raising it is a user choice, with a plain-language warning).
 
 **Should ship**
 - Telegram guardian alerts with a Cancel button (sent to every guardian).
@@ -77,7 +79,7 @@ Pitch line: **"Dollar safety you control" — not an APY pitch.**
   StashVault clones     StashVault clones        Privy Solana wallet
   holding OUSD          holding USDC              + Squads spending limit
   limits/timelock/      Save pot →                Growth pot →
-  guardian/goals        Morpho vault (in-vault)   Reflect srUSDC / USDC+
+  guardian/goals        Morpho vault (in-vault)   Reflect tranche / Kamino
         │                   │                         │
         └──────── events → worker → Telegram guardian alerts ┘
 ```
@@ -124,7 +126,8 @@ Must stay **ERC-20/TIP-20 only** — Tempo has no native token (`msg.value` and 
 | Privy (login, embedded EVM + Solana wallets) | Supports Tempo, Base, Solana; OUSD first-class | — |
 | OUSD on Tempo | Live since Sept 30; testnet OUSD from faucet | pathUSD / USDC.e |
 | Morpho vault (Save pot) | Pick a curated USDC vault on Base; pass it as `DEFAULT_YIELD_TARGETS` at factory deploy | Leave Save pot as plain USDC in the vault |
-| Reflect (Growth pot) | Closed beta; tranche endpoints on dev API only | USDC+ (Reflect Earn, mainnet) → Privy Earn Kamino vault |
+| Reflect (Growth pot) | Closed beta; tranche endpoints on dev API only. USDC+ lost ~$1.95M in the Apr 1 2026 Drift exploit; mint/redeem frozen; Jul 2026 recovery = 0.20 USDC + 80 Reflect Credits per USDC+. Tranche status unconfirmed. **Use only if Reflect confirms tranches are live, isolated from Drift, and gives API access by end of Day 3.** | Kamino USDC vault (directly or via Privy Earn). Not USDC+. |
+| Protocol hack risk (all yield pots) | The vault can't protect against the yield protocol itself being hacked (Drift → Reflect, Stream → Morpho) | Pot caps, spread across pots, show dependencies; pick curated vaults with blue-chip collateral; disclose in app and pitch |
 | Relay bridge (moving between pots) | Verify Tempo + Solana routes on Day 1 | Users fund each pot directly |
 | Squads (Solana spending limit) | Verify spending-limit API on Day 4 | Show Solana Growth pot without limits; disclose |
 | Fee sponsorship (Tempo/Base) | Unknown how long it lasts. Day 1: check if it's paid by us (lasts while we fund it) or a Tempo/Privy subsidy (can end anytime) | Sponsorship is a toggle; fallback = user pays a sub-cent fee in stablecoin from their balance. Guardian wallets keep a few cents for fees. Pitch says "we cover fees today", never "free forever". |
@@ -146,7 +149,7 @@ Must stay **ERC-20/TIP-20 only** — Tempo has no native token (`msg.value` and 
 
 - **Contracts:** Solidity + Foundry (Tempo has a Foundry guide), OpenZeppelin `Clones` + `SafeERC20`.
 - **Frontend:** Next.js PWA, `viem`/`wagmi` with Tempo's viem extension, `@solana/kit`, Privy.
-- **Solana:** Reflect `@reflectmoney/stable.ts` + REST API; Squads SDK.
+- **Solana:** Reflect tranche REST API (if approved) or Kamino SDK; Squads SDK.
 - **Worker:** Node + grammY Telegram bot; listens to vault events on Tempo/Base.
 
 ## Schedule
@@ -155,7 +158,7 @@ Must stay **ERC-20/TIP-20 only** — Tempo has no native token (`msg.value` and 
 |---|---|---|---|
 | 1 | Thu Oct 2 | Run Colosseum Copilot; Foundry + Next.js scaffold; Privy app with Tempo/Base/Solana; check who pays Tempo fee sponsorship | DM Reflect for access; ask Colosseum Discord about multi-track; interview 5 savers |
 | 2 | Fri Oct 3 | ✅ Done early (Oct 2): vault + factory + 35 tests incl. multi-guardian, veto, auto-save, goals, yield adapters | Pick the Morpho USDC vault on Base |
-| 3 | Sat Oct 4 | Timelock queue, multi-guardian cancel/approve/add/remove, freeze, timelocked policy, adapter allowlist; tests | **Reflect access checkpoint** |
+| 3 | Sat Oct 4 | Timelock queue, multi-guardian cancel/approve/add/remove, freeze, timelocked policy, adapter allowlist; tests | **Reflect checkpoint**: tranches live + isolated from Drift + API access? If not → switch Growth pot to Kamino |
 | 4 | Sun Oct 5 | Goals + break fee + auto-save logic; tests; deploy to Tempo testnet + Base Sepolia | Start early-user group (20+) |
 | 5 | Mon Oct 6 | Frontend: login, Tempo account, send/receive, pending queue, auto-save setup | Weekly update video #1 |
 | 6 | Tue Oct 7 | Base Save pot (Morpho via vault) + Solana Growth pot (Reflect) | — |
@@ -176,7 +179,7 @@ Cut order if behind: Relay bridging → Squads limit → Telegram alerts → aut
 ## Submission checklist (from Colosseum's FAQ)
 
 - [ ] Product name, short description, logo
-- [ ] Blockchains used: Tempo (primary), Base, Solana — plus Reflect, Privy, Morpho, OUSD
+- [ ] Blockchains used: Tempo (primary), Base, Solana — plus Privy, Morpho, OUSD, and Reflect or Kamino
 - [ ] Team backgrounds + location
 - [ ] Public GitHub repo; disclose any pre-hackathon code
 - [ ] 2–3 min pitch video (judges watch this first)
