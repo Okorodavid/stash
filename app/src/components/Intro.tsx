@@ -35,6 +35,11 @@ export default function Intro({
       >
         {loading ? "Loading…" : guardian ? "Sign in as guardian" : "Get started"}
       </button>
+      {!guardian && process.env.NEXT_PUBLIC_DEMO_VAULT && (
+        <a href="/drain" className="block text-center text-sm text-muted underline">
+          Watch a thief try to drain a vault
+        </a>
+      )}
     </section>
   );
 }

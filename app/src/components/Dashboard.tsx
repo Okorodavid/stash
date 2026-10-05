@@ -107,6 +107,12 @@ function Vault({ ctx }: { ctx: Loaded }) {
       <SendCard ctx={ctx} />
       {s.pending.length > 0 && <PendingCard ctx={ctx} />}
       <GuardiansCard ctx={ctx} />
+      <a href={`/drain?vault=${s.vault}`} className={`${card} block`}>
+        <p className="font-medium">What if someone stole your login? →</p>
+        <p className="mt-1 text-sm text-muted">
+          Watch a simulated thief try to drain your vault. Nothing is sent.
+        </p>
+      </a>
       {s.frozen ? (
         <section className={card}>
           <p className="font-medium">Your vault is frozen</p>
