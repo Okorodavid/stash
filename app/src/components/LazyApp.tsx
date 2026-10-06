@@ -9,6 +9,6 @@ const StashApp = dynamic(() => import("./StashApp"), {
   loading: () => <Intro loading />,
 });
 
-export default function LazyApp({ guardianOf }: { guardianOf?: Address }) {
-  return <StashApp guardianOf={guardianOf} />;
+export default function LazyApp({ guardianOf, swap }: { guardianOf?: Address; swap?: boolean }) {
+  return <StashApp guardianOf={guardianOf} swap={swap} />;
 }

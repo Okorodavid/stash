@@ -10,8 +10,9 @@ const EXIT_URL = process.env.NEXT_PUBLIC_EXIT_URL;
 const flagKey = (owner: string) => `stash:recovery-saved:${owner.toLowerCase()}`;
 
 /**
- * Whether the user confirmed an offline backup. Stored on their Privy account (so it follows them
- * across browsers and devices) with this browser as a fallback. A reminder only: we can't verify it.
+ * Whether the user has seen their recovery key. Stored on their Privy account (so it follows them
+ * across browsers and devices) with this browser as a fallback. The key opens in Privy's own window,
+ * so Stash can't tell whether it was copied: opening it counts as backed up.
  */
 function useBackedUp(owner: string) {
   const { getAccessToken } = usePrivy();
@@ -47,42 +48,29 @@ function useBackedUp(owner: string) {
   return { saved: onAccount ? true : local, confirm };
 }
 
-export default function RecoveryCard({ owner }: { owner: string }) {
+/** Opens the key in Privy's secure window; resolves once the user closes it. */
+function useShowKey(owner: string) {
   const { exportWallet } = useExportWallet();
-  const { saved, confirm } = useBackedUp(owner);
-  const [shown, setShown] = useState(false);
-  const [checked, setChecked] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const show = async () => {
     setError(null);
     try {
       await exportWallet({ address: owner });
-      setShown(true);
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     }
   };
+  return { show, error };
+}
 
-  if (saved === null) return null;
+/** Home screen prompt. Shown only until the key has been viewed once; after that it lives in Account. */
+export default function RecoveryCard({ owner }: { owner: string }) {
+  const { saved, confirm } = useBackedUp(owner);
+  const { show, error } = useShowKey(owner);
 
-  if (saved) {
-    return (
-      <section className="flex items-center justify-between gap-2 rounded-2xl border border-line px-4 py-3 text-sm">
-        <span>Recovery key backed up ✓</span>
-        <span className="flex gap-3">
-          <button className="underline" onClick={show}>
-            View again
-          </button>
-          {EXIT_URL && (
-            <a className="underline" href={EXIT_URL} target="_blank" rel="noreferrer">
-              Exit page
-            </a>
-          )}
-        </span>
-      </section>
-    );
-  }
+  if (saved !== false) return null;
 
   return (
     <section className={`${card} border-warn`}>
@@ -93,6 +81,7 @@ export default function RecoveryCard({ owner }: { owner: string }) {
       </p>
       <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
         <li>Tap below. The key opens in a secure Privy window; Stash never sees it.</li>
+        <li>Copy it in that window. After this, the key is only under Account.</li>
         <li>Write it on paper or save it in a password manager. Never screenshot it or send it to anyone.</li>
         <li>Anyone who asks for it, including someone claiming to be Stash, is trying to rob you.</li>
       </ol>
@@ -100,19 +89,65 @@ export default function RecoveryCard({ owner }: { owner: string }) {
         Even with this key, a thief still faces your daily limit, the waiting period, and your guardians. But keep it safe.
       </p>
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-      <button className={`${btn} mt-3`} onClick={show}>
-        {shown ? "Show recovery key again" : "Show my recovery key"}
+      <button
+        className={`${btn} mt-3`}
+        onClick={() => {
+          // The key is copied inside Privy's window, which Stash can't observe, so opening it counts:
+          // the card leaves Home right away (Privy's window stays open) and the key lives under Account.
+          void show();
+          void confirm();
+        }}
+      >
+        Show my recovery key
       </button>
-      {shown && (
-        <div className="mt-3 space-y-2">
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-1" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
-            I&apos;ve written my recovery key down somewhere safe and offline.
-          </label>
-          <button className={`${btnGhost} w-full`} disabled={!checked} onClick={confirm}>
-            Done
-          </button>
+    </section>
+  );
+}
+
+/** Account settings: the only place to see the key again once it's been backed up. */
+export function RecoverySettings({ owner }: { owner: string }) {
+  const { saved, confirm } = useBackedUp(owner);
+  const { show, error } = useShowKey(owner);
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={card}>
+      <p className="font-medium">Recovery key</p>
+      <p className="mt-1 text-sm text-muted">
+        {saved
+          ? "Backed up. Only view it again if you need to move it somewhere safe or use the exit page."
+          : "Not backed up yet. Your vault can only be recovered without Stash if you save this key."}
+      </p>
+      {open ? (
+        <div className="mt-3 space-y-2 text-sm">
+          <p>Make sure no one can see your screen. Never screenshot it or send it to anyone, including Stash.</p>
+          <div className="flex gap-2">
+            <button
+              className={btn}
+              onClick={async () => {
+                if ((await show()) && !saved) await confirm();
+                setOpen(false);
+              }}
+            >
+              Show recovery key
+            </button>
+            <button className={btnGhost} onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
         </div>
+      ) : (
+        <button className={`${btnGhost} mt-3 w-full`} onClick={() => setOpen(true)}>
+          View recovery key
+        </button>
+      )}
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+      {EXIT_URL && (
+        <p className="mt-3 text-sm">
+          <a className="underline" href={EXIT_URL} target="_blank" rel="noreferrer">
+            Open the exit page
+          </a>{" "}
+          <span className="text-muted">(withdraw without Stash)</span>
+        </p>
       )}
     </section>
   );

@@ -6,9 +6,12 @@ import { net } from "@/lib/chain";
 import { useGuardian } from "@/lib/useGuardian";
 import { useNow } from "@/lib/useNow";
 import AlertsButton from "./AlertsButton";
-import { btn, btnGhost, card, short, usd } from "./ui";
+import HoldButton from "./HoldButton";
+import { HourglassIcon, SnowflakeIcon } from "./Icons";
+import { btn, btnGhost, card, short, timeLeft, usd } from "./ui";
 
 const money = (v: bigint) => usd(v, 18);
+
 
 export default function GuardianView({ vault }: { vault: Address }) {
   const { logout } = usePrivy();
@@ -50,16 +53,26 @@ export default function GuardianView({ vault }: { vault: Address }) {
         {state.pending.length === 0 && <p className="text-sm text-muted">Nothing waiting. All quiet.</p>}
         <ul className="space-y-3">
           {state.pending.map((p) => (
-            <li key={p.id.toString()} className="rounded-xl border border-line p-3 text-sm">
-              <p className="font-medium">
-                {usd(p.amount, token.decimals)} to <span className="font-mono">{short(p.to)}</span>
-              </p>
-              <p className="text-muted">
-                {now >= p.unlockAt ? "Can be released now" : `Leaves ${new Date(p.unlockAt * 1000).toLocaleString()}`}
-                {p.guardianApproved && " · ✓ reviewed"}
-              </p>
-              <div className="mt-2 flex gap-2">
-                <button className={`${btnGhost} text-danger`} disabled={!!busy} onClick={() => actions.cancelWithdrawal(p.id)}>
+            <li key={p.id.toString()} className="rounded-xl border border-warn/30 bg-warn/10 p-4 text-sm">
+              <div className="flex items-start gap-3">
+                <HourglassIcon className="mt-1 shrink-0 text-warn" width={24} height={24} />
+                <div className="min-w-0">
+                  <p className="text-xl font-semibold">{usd(p.amount, token.decimals)} is leaving</p>
+                  <p className="text-muted">
+                    to <span className="font-mono">{short(p.to)}</span>
+                    {p.guardianApproved && " · ✓ reviewed"}
+                  </p>
+                  <p className="mt-1 font-medium text-warn">
+                    {now >= p.unlockAt ? "Can be released now" : now > 0 ? `Goes through in ${timeLeft(p.unlockAt - now)}` : "…"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <button
+                  className="flex-1 rounded-xl bg-danger px-4 py-3 font-semibold text-white disabled:opacity-50"
+                  disabled={!!busy}
+                  onClick={() => actions.cancelWithdrawal(p.id)}
+                >
                   Stop it
                 </button>
                 {!p.guardianApproved && (
@@ -147,9 +160,13 @@ export default function GuardianView({ vault }: { vault: Address }) {
           )}
         </section>
       ) : (
-        <button className={`${btnGhost} w-full text-danger`} disabled={!!busy} onClick={() => actions.freeze()}>
-          Freeze this vault (emergency stop)
-        </button>
+        <HoldButton
+          className="w-full rounded-xl border border-danger/40 px-4 py-3 text-sm font-semibold text-danger disabled:opacity-50"
+          disabled={!!busy}
+          onHold={() => actions.freeze()}
+        >
+          <SnowflakeIcon width={18} height={18} /> Hold to freeze this vault
+        </HoldButton>
       )}
 
       <footer className="flex items-center justify-between pt-2 text-xs text-muted">

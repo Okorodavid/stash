@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { getAddress, isAddress } from "viem";
 import DrainSim from "@/components/DrainSim";
+import SiteHeader from "@/components/SiteHeader";
 
 export const metadata = { title: "Stash · Drain test" };
 
@@ -11,12 +11,7 @@ export default async function DrainPage({ searchParams }: PageProps<"/drain">) {
   const target = typeof vault === "string" && isAddress(vault) ? vault : process.env.NEXT_PUBLIC_DEMO_VAULT;
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 py-6">
-      <header className="mb-6 flex items-center justify-between">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          Stash
-        </Link>
-        <span className="text-xs text-muted">Testnet beta · unaudited</span>
-      </header>
+      <SiteHeader />
       {target && isAddress(target) ? (
         <DrainSim vault={getAddress(target)} />
       ) : (

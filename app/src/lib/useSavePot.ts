@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
-import { clientFor, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
+import { clientFor, depositRoom, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
 import { DEFAULT_POLICY, NETWORKS, SAVE } from "./config";
 import { useSender } from "./useSender";
 
@@ -27,6 +27,9 @@ export type SavePotState = {
   frozen: boolean;
   allowanceUsd: bigint;
   largeThresholdUsd: bigint;
+  timelock: number; // seconds
+  /** Dollars (18 decimals) the pot can still take in during the beta; null = no cap. */
+  depositRoomUsd: bigint | null;
   pending: Pending[];
 };
 
@@ -58,17 +61,20 @@ export function useSavePot() {
         frozen: false,
         allowanceUsd: 0n,
         largeThresholdUsd: DEFAULT_POLICY.largeThreshold,
+        timelock: Number(DEFAULT_POLICY.timelock),
+        depositRoomUsd: await depositRoom(factory, null, SAVE),
         pending: [],
       });
       return;
     }
     const read = (fn: string, args: readonly unknown[] = []) => readVault(vault, fn, args, SAVE);
-    const [idle, frozen, allowanceUsd, policy, nextId] = await Promise.all([
+    const [idle, frozen, allowanceUsd, policy, nextId, room] = await Promise.all([
       read("available", [usdc.address]),
       read("frozen"),
       read("remainingDailyLimit"),
       read("policy"),
       read("nextWithdrawalId"),
+      depositRoom(factory, vault, SAVE),
     ]);
     const shares = adapter
       ? await client.readContract({ address: adapter, abi: erc4626Abi, functionName: "balanceOf", args: [vault] })
@@ -86,6 +92,8 @@ export function useSavePot() {
       frozen,
       allowanceUsd,
       largeThresholdUsd: policy[2],
+      timelock: Number(policy[0]),
+      depositRoomUsd: room,
       pending: await readPending(vault, nextId, SAVE),
     });
   }, [owner]);
@@ -109,13 +117,14 @@ export function useSavePot() {
   const v = (fn: string, args: readonly unknown[] = []) => vaultCall(vault as Address, fn, args);
 
   const actions = {
-    createVault: (guardians: Address[]) =>
+    /** Same guardians and waiting period as the main vault. */
+    createVault: (guardians: Address[], timelock: bigint) =>
       send("Opening your Save pot", [
         {
           address: network.factory as Address,
           abi: stashFactoryAbi,
           functionName: "createVault",
-          args: [guardians, DEFAULT_POLICY],
+          args: [guardians, { ...DEFAULT_POLICY, timelock }],
         },
       ]),
     /** Move USDC from the wallet into the pot and start earning on it, in one flow. */
@@ -137,7 +146,7 @@ export function useSavePot() {
     stopEarning: () => send("Moving out of the earning vault", [v("redeemFromYield", [state?.adapter, state?.shares])]),
     /** Back to the user's own wallet: instant within the allowance, otherwise via the waiting period. */
     withdrawToWallet: (amount: bigint, instant: boolean) =>
-      send(instant ? "Withdrawing" : "Starting 24h wait", [
+      send(instant ? "Withdrawing" : "Starting the wait", [
         v(instant ? "withdraw" : "requestWithdrawal", [usdc.address, owner, amount]),
       ]),
     executeWithdrawal: (id: bigint) => send("Releasing", [v("executeWithdrawal", [id])]),

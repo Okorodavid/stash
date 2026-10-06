@@ -1,5 +1,6 @@
 import { getAddress, isAddress } from "viem";
 import LazyApp from "@/components/LazyApp";
+import SiteHeader from "@/components/SiteHeader";
 
 export const metadata = { title: "Stash · Guardian" };
 
@@ -9,10 +10,7 @@ export default async function GuardianPage({ searchParams }: PageProps<"/guardia
   const valid = typeof vault === "string" && isAddress(vault);
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 py-6">
-      <header className="mb-6 flex items-center justify-between">
-        <span className="text-lg font-semibold tracking-tight">Stash · Guardian</span>
-        <span className="text-xs text-muted">Testnet beta · unaudited</span>
-      </header>
+      <SiteHeader suffix="guardian" />
       {valid ? (
         <LazyApp guardianOf={getAddress(vault)} />
       ) : (

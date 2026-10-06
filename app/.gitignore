@@ -44,3 +44,6 @@ next-env.d.ts
 # worker state and secrets
 /worker/data/
 /worker/.env
+
+.vercel
+.env*

@@ -8,7 +8,7 @@ export default function Intro({
   guardian?: boolean;
 }) {
   return (
-    <section className="space-y-5">
+    <section className="mx-auto max-w-md space-y-5">
       {guardian ? (
         <>
           <h1 className="text-3xl font-semibold leading-tight">Someone trusts you to guard their savings.</h1>
@@ -23,7 +23,7 @@ export default function Intro({
           <h1 className="text-3xl font-semibold leading-tight">Save in dollars. A stolen password can&apos;t drain it.</h1>
           <ul className="space-y-2 text-muted">
             <li>• Small amounts move instantly, up to your daily limit.</li>
-            <li>• Big withdrawals wait 24 hours, and your guardians can stop them.</li>
+            <li>• Big withdrawals wait 24 hours or longer (you choose), and your guardians can stop them.</li>
             <li>• Lock savings toward a goal and earn on them.</li>
           </ul>
         </>

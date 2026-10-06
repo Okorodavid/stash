@@ -47,8 +47,19 @@ function maxByShare(limit: number, otherUsd: number, growthUsd: number) {
   return Math.max(0, (limit * otherUsd - (1 - limit) * growthUsd) / (1 - limit));
 }
 
-export default function GrowthPotCard({ otherSavingsUsd }: { otherSavingsUsd: number }) {
+export default function GrowthPotCard({
+  otherSavingsUsd,
+  onValueUsd,
+}: {
+  otherSavingsUsd: number;
+  /** Reports the pot's dollar value whenever it loads or changes (for the pots overview). */
+  onValueUsd?: (usd: number) => void;
+}) {
   const { address, state, busy, error, actions } = useGrowthPot();
+  const valueUsd = state?.valueUsd;
+  useEffect(() => {
+    if (valueUsd !== undefined) onValueUsd?.(valueUsd);
+  }, [valueUsd, onValueUsd]);
   const { limit, setLimit } = useGrowthLimit(address);
   const [amount, setAmount] = useState("");
   const [copied, setCopied] = useState(false);

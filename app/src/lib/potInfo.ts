@@ -16,7 +16,6 @@ export const POT_INFO: Record<"vault" | "save" | "growth", PotInfo> = {
     ],
     notes: [
       "No yield protocol: this money isn't lent out, so a DeFi hack elsewhere can't touch it.",
-      "Stash's code is open source but not yet audited.",
     ],
   },
   save: {

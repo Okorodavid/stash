@@ -1,0 +1,6 @@
+# Never upload local secrets or the worker (it runs separately, with its own keys).
+.env*
+!.env.example
+worker/
+node_modules/
+.next/

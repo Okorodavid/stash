@@ -164,12 +164,16 @@ export async function runDrain(s: VaultSnapshot, guardiansRespond: boolean): Pro
       ok: { outcome: "waiting", detail: `Has to wait ${wait}. Guardians and the owner get a Telegram alert that opens the guardian page.` },
     });
   }
+  const MIN_WAIT = 24 * 3600; // the contract's floor
   plan.push({
     actor: "thief",
-    title: "Raises the limits to $1 billion and cuts the wait to 1 hour",
+    title:
+      s.timelock > MIN_WAIT
+        ? "Raises the limits to $1 billion and cuts the wait to 24 hours"
+        : "Raises the limits to $1 billion",
     from: thief,
     fn: "proposePolicy",
-    args: [{ timelock: 3600n, dailyLimit: 10n ** 27n, largeThreshold: 10n ** 27n }],
+    args: [{ timelock: BigInt(MIN_WAIT), dailyLimit: 10n ** 27n, largeThreshold: 10n ** 27n }],
     ok: { outcome: "waiting", detail: `Loosening the rules waits ${wait} too, so any guardian can cancel it.` },
   });
   if (plantGuardian) {

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useWallets } from "@privy-io/react-auth";
 import { createWalletClient, custom, encodeFunctionData, type Address, type Hash } from "viem";
-import { clientFor, type Call } from "./chain";
+import { clientFor, type Call, type RawTx } from "./chain";
 import { HOME, NETWORKS, type NetworkKey } from "./config";
 
 /** The signed-in user's embedded wallet, plus a safe way to send calls from it. */
@@ -16,7 +16,7 @@ export function useSender() {
 
   /** Sends calls in order on the given network, waiting for each to confirm. Returns the last hash, or undefined on failure. */
   const send = useCallback(
-    async (label: string, calls: Call[], key: NetworkKey = HOME) => {
+    async (label: string, calls: (Call | RawTx)[], key: NetworkKey = HOME) => {
       if (!wallet || !account) return;
       const { chain } = NETWORKS[key];
       const publicClient = clientFor(key);
@@ -37,15 +37,18 @@ export function useSender() {
         const walletClient = createWalletClient({ account, chain, transport: custom(provider) });
         let hash: Hash | undefined;
         for (const call of calls) {
+          const raw = "data" in call;
+          const to = raw ? call.to : call.address;
+          const value = raw ? call.value : undefined;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const data = encodeFunctionData(call as any);
+          const data = raw ? call.data : encodeFunctionData(call as any);
           // Tempo's estimate undercounts its expensive new-storage writes (250k gas per slot),
           // so pad it; otherwise e.g. createVault runs out of gas.
-          const estimate = await publicClient.estimateGas({ account, to: call.address, data });
+          const estimate = await publicClient.estimateGas({ account, to, data, value });
           // Read the nonce from the chain ourselves: Privy's own count can lag behind after a
           // reverted transaction (reverts still consume a nonce), causing "nonce too low".
           const nonce = await publicClient.getTransactionCount({ address: account, blockTag: "pending" });
-          hash = await walletClient.sendTransaction({ to: call.address, data, gas: (estimate * 3n) / 2n, nonce });
+          hash = await walletClient.sendTransaction({ to, data, value, gas: (estimate * 3n) / 2n, nonce });
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
           if (receipt.status !== "success") throw new Error(`${label} failed on-chain (tx ${hash}).`);
         }

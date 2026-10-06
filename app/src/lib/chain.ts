@@ -1,5 +1,5 @@
-import { createPublicClient, http, type Address, type PublicClient } from "viem";
-import { stashVaultAbi } from "./abis";
+import { createPublicClient, http, type Address, type Hex, type PublicClient } from "viem";
+import { stashFactoryAbi, stashVaultAbi } from "./abis";
 import { HOME, NETWORKS, type NetworkKey } from "./config";
 
 export const net = NETWORKS[HOME];
@@ -19,6 +19,8 @@ export function clientFor(key: NetworkKey): PublicClient {
 export const publicClient = clientFor(HOME);
 
 export type Call = { address: Address; abi: readonly unknown[]; functionName: string; args: readonly unknown[] };
+/** A prebuilt transaction (e.g. from a swap router): calldata as given, optional native value. */
+export type RawTx = { to: Address; data: Hex; value?: bigint };
 
 export type Pending = {
   id: bigint;
@@ -57,4 +59,18 @@ export async function readPending(vault: Address, nextId: bigint, key: NetworkKe
       guardianApproved: p[4] as boolean,
     }))
     .filter((p) => p.amount > 0n);
+}
+
+/**
+ * Dollars (18 decimals) a vault can still take in under its factory's beta deposit cap.
+ * null = no cap (or a factory deployed before the cap existed).
+ */
+export async function depositRoom(factory: Address, vault: Address | null, key: NetworkKey = HOME): Promise<bigint | null> {
+  const client = clientFor(key);
+  const cap = await client
+    .readContract({ address: factory, abi: stashFactoryAbi, functionName: "depositCapUsd" })
+    .catch(() => 0n);
+  if (cap === 0n) return null;
+  const used = vault ? ((await readVault(vault, "netDepositedUsd", [], key).catch(() => 0n)) as bigint) : 0n;
+  return cap > used ? cap - used : 0n;
 }

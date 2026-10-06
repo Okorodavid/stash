@@ -5,7 +5,7 @@ import { formatUnits, parseUnits } from "viem";
 import type { useSavePot } from "@/lib/useSavePot";
 import PotInfo from "./PotInfo";
 import { useNow } from "@/lib/useNow";
-import { btn, btnGhost, card, input, usd, type Loaded } from "./ui";
+import { btn, btnGhost, card, input, usd, waitAdj, type Loaded } from "./ui";
 
 export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnType<typeof useSavePot> }) {
   const { enabled, network, usdc, state, busy, error, actions } = pot;
@@ -39,7 +39,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
           A second vault with the same rules and guardians, where your dollars earn interest. Wallet: {usd(state.walletUsdc, usdc.decimals)} {usdc.symbol}
         </p>
         {gasNote}
-        <button className={`${btn} mt-3`} disabled={!!busy || noGas} onClick={() => actions.createVault(home.state.guardians)}>
+        <button className={`${btn} mt-3`} disabled={!!busy || noGas} onClick={() => actions.createVault(home.state.guardians, BigInt(home.state.timelock))}>
           Open Save pot
         </button>
         {busy && <p className="mt-2 text-sm">{busy}…</p>}
@@ -52,6 +52,8 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
   const total = state.idle + state.earning;
   const amt = Number(out || 0);
   const instant = amt > 0 && amt <= Number(formatUnits(state.allowanceUsd, 18)) && amt < Number(formatUnits(state.largeThresholdUsd, 18));
+  const room = state.depositRoomUsd;
+  const overCap = room !== null && Number(amount || 0) > Number(formatUnits(room, 18));
 
   return (
     <section className={card}>
@@ -68,12 +70,15 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
       {busy && <p className="mt-2 rounded-lg bg-accent/10 px-3 py-2 text-sm">{busy}…</p>}
       {error && <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
-      <p className="mt-3 text-sm">Add from wallet ({usd(state.walletUsdc, usdc.decimals)} {usdc.symbol})</p>
+      <p className="mt-3 text-sm">
+        Add from wallet ({usd(state.walletUsdc, usdc.decimals)} {usdc.symbol})
+        {room !== null && <span className="text-muted"> · beta limit: {usd(room, 18)} more</span>}
+      </p>
       <div className="mt-1 flex gap-2">
         <input className={input} inputMode="decimal" placeholder="$ amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <button
           className={btnGhost}
-          disabled={!!busy || !amount || noGas || state.frozen}
+          disabled={!!busy || !amount || noGas || state.frozen || overCap}
           onClick={() => actions.saveAndEarn(parseUnits(amount, usdc.decimals)).then(() => setAmount(""))}
         >
           Save
@@ -96,7 +101,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
               disabled={!!busy || !out || state.frozen}
               onClick={() => actions.withdrawToWallet(parseUnits(out, usdc.decimals), instant).then(() => setOut(""))}
             >
-              {instant || !out ? "Withdraw" : "Start 24h wait"}
+              {instant || !out ? "Withdraw" : `Start ${waitAdj(state.timelock)} wait`}
             </button>
           </div>
         </>

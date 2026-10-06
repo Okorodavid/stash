@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
-import { net, publicClient, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
+import { depositRoom, net, publicClient, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
 import { DEFAULT_POLICY, type Token } from "./config";
 import { useSender } from "./useSender";
 
@@ -31,8 +31,13 @@ export type VaultState = {
   /** Guardian who approved an unfreeze (owner can then unfreeze), or null. */
   unfreezeApprovedBy: Address | null;
   allowanceUsd: bigint; // 18 decimals
+  dailyLimitUsd: bigint;
   largeThresholdUsd: bigint;
   timelock: number; // seconds
+  /** A queued rules change (e.g. a shorter waiting period), or null. */
+  pendingPolicy: { timelock: number; dailyLimitUsd: bigint; largeThresholdUsd: bigint; effectiveAt: number } | null;
+  /** Dollars (18 decimals) the vault can still take in during the beta; null = no cap. */
+  depositRoomUsd: bigint | null;
   guardians: Address[];
   balances: { token: Token; available: bigint; total: bigint; wallet: bigint }[];
   pending: Pending[];
@@ -66,8 +71,11 @@ export function useVault() {
         frozen: false,
         unfreezeApprovedBy: null,
         allowanceUsd: 0n,
+        dailyLimitUsd: DEFAULT_POLICY.dailyLimit,
         largeThresholdUsd: DEFAULT_POLICY.largeThreshold,
         timelock: Number(DEFAULT_POLICY.timelock),
+        pendingPolicy: null,
+        depositRoomUsd: await depositRoom(net.factory, null),
         guardians: [],
         balances: net.tokens.map((token, i) => ({ token, available: 0n, total: 0n, wallet: walletBalances[i] })),
         pending: [],
@@ -78,7 +86,7 @@ export function useVault() {
     }
     const read = (fn: string, args: readonly unknown[] = []) => readVault(vault, fn, args);
 
-    const [frozen, approver, allowanceUsd, policy, guardians, nextId, goalCount, plan] = await Promise.all([
+    const [frozen, approver, allowanceUsd, policy, guardians, nextId, goalCount, plan, proposed, room] = await Promise.all([
       read("frozen"),
       read("unfreezeApprovedBy"),
       read("remainingDailyLimit"),
@@ -87,6 +95,8 @@ export function useVault() {
       read("nextWithdrawalId"),
       read("goalCount"),
       read("autoSaves", [owner]),
+      read("pendingPolicy"),
+      depositRoom(net.factory, vault),
     ]);
     const goalIds = Array.from({ length: Math.min(Number(goalCount), 20) }, (_, i) => i + 1);
     const goals: Goal[] = (await Promise.all(goalIds.map((id) => read("goals", [id])))).map((g, i) => ({
@@ -115,8 +125,19 @@ export function useVault() {
       frozen,
       unfreezeApprovedBy: approver === zeroAddress ? null : approver,
       allowanceUsd,
+      dailyLimitUsd: policy[1],
       largeThresholdUsd: policy[2],
       timelock: Number(policy[0]),
+      pendingPolicy:
+        proposed[1] === 0n
+          ? null
+          : {
+              timelock: Number(proposed[0].timelock),
+              dailyLimitUsd: proposed[0].dailyLimit,
+              largeThresholdUsd: proposed[0].largeThreshold,
+              effectiveAt: Number(proposed[1]),
+            },
+      depositRoomUsd: room,
       guardians,
       balances,
       pending: await readPending(vault, nextId),
@@ -152,13 +173,14 @@ export function useVault() {
     });
 
   const actions = {
-    createVault: (guardians: Address[]) =>
+    /** `timelock` = the owner's chosen waiting period in seconds (24 hours or longer). */
+    createVault: (guardians: Address[], timelock: bigint) =>
       send("Creating your vault", [
         {
           address: net.factory as Address,
           abi: stashFactoryAbi,
           functionName: "createVault",
-          args: [guardians, DEFAULT_POLICY],
+          args: [guardians, { ...DEFAULT_POLICY, timelock }],
         },
       ]),
     deposit: async (token: Token, amount: bigint) => {
@@ -187,12 +209,20 @@ export function useVault() {
     runAutoSaveNow: () => send("Running auto-save", [v("pullAutoSave", [owner])]),
     withdraw: (token: Token, to: Address, amount: bigint) => send("Sending", [v("withdraw", [token.address, to, amount])]),
     requestWithdrawal: (token: Token, to: Address, amount: bigint) =>
-      send("Starting 24h wait", [v("requestWithdrawal", [token.address, to, amount])]),
+      send("Starting the wait", [v("requestWithdrawal", [token.address, to, amount])]),
     executeWithdrawal: (id: bigint) => send("Releasing", [v("executeWithdrawal", [id])]),
     cancelWithdrawal: (id: bigint) => send("Cancelling", [v("cancelWithdrawal", [id])]),
     freeze: () => send("Freezing", [v("freeze")]),
     unfreeze: () => send("Unfreezing", [v("unfreeze")]),
     addGuardian: (g: Address) => send("Adding guardian", [v("addGuardian", [g])]),
+    /**
+     * New limits and waiting period (USD amounts in 18 decimals). Stricter rules apply at once; anything
+     * looser is queued for the current waiting period, and the owner or any guardian can cancel it.
+     */
+    setRules: (next: { timelock: bigint; dailyLimit: bigint; largeThreshold: bigint }) =>
+      send("Saving your rules", [v("proposePolicy", [next])]),
+    applyRules: () => send("Applying the new rules", [v("applyPolicy")]),
+    cancelRules: () => send("Cancelling the rules change", [v("cancelPolicy")]),
   };
 
   return { ready, owner, network: net, configured: Boolean(net.factory), state, busy, error, refresh, actions };
