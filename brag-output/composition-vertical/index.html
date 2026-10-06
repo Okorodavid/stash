@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=block"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="assets/rms.js"></script>
+    <style>
+      :root {
+        --bg: #0c0a09;
+        --card: #1c1917;
+        --line: #292524;
+        --fg: #f5f5f4;
+        --muted: #a8a29e;
+        --accent: #2dd4bf;
+        --accent-fg: #042f2e;
+        --danger: #f87171;
+        --warn: #fbbf24;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: var(--bg); color: var(--fg);
+        font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+      .clip { position: absolute; inset: 0; }
+      .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+      .center { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+      /* Scene 1: hook */
+      #hook-title {
+        font-size: 140px; font-weight: 800; letter-spacing: -0.045em; line-height: 0.95;
+        text-align: center; color: var(--fg);
+      }
+      #hook-title .red { color: var(--danger); }
+      #hook-sub { margin-top: 44px; font-size: 30px; color: var(--muted); letter-spacing: 0.01em; }
+      #hook-sub b { color: var(--fg); font-weight: 500; }
+      #vignette {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at center, rgba(248,113,113,0.10) 0%, rgba(12,10,9,0) 55%);
+      }
+
+      /* Scene 2: ordinary wallet */
+      #wallet-wrap { width: 1180px; }
+      .bar-head { display: flex; justify-content: space-between; font-size: 34px; color: var(--muted); margin-bottom: 18px; }
+      .bar-head .pct { color: var(--danger); font-weight: 600; }
+      .bar { height: 34px; border-radius: 999px; background: rgba(45,212,191,0.2); overflow: hidden; }
+      .bar > i { display: block; height: 100%; width: 0%; border-radius: 999px; background: var(--danger); }
+      #gone { margin-top: 70px; font-size: 92px; font-weight: 700; letter-spacing: -0.04em; text-align: center; }
+      #pivot {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        text-align: center; font-size: 104px; font-weight: 700; letter-spacing: -0.045em;
+      }
+      #pivot span { color: var(--accent); }
+      #pivot span.w { color: var(--fg); }
+
+      /* Scenes 3-4: drain sim */
+      #sim-head { position: absolute; top: 64px; left: 0; right: 0; text-align: center; }
+      #sim-head h1 { font-size: 52px; font-weight: 600; letter-spacing: -0.03em; }
+      #sim-head p { margin-top: 10px; font-size: 22px; color: var(--muted); }
+      .col { position: absolute; top: 200px; width: 1060px; display: flex; flex-direction: column; gap: 18px; }
+      #thief-col { left: 430px; transform-origin: 0 0; }
+      #guard-col { left: 1010px; width: 850px; top: 196px; }
+      .card {
+        display: flex; align-items: flex-start; gap: 22px;
+        background: var(--card); border: 1.5px solid var(--line); border-radius: 26px; padding: 24px 28px;
+      }
+      .av {
+        flex: none; width: 58px; height: 58px; border-radius: 999px; display: grid; place-items: center; font-size: 30px;
+      }
+      .av.thief { background: rgba(248,113,113,0.12); }
+      .av.guard { background: rgba(45,212,191,0.12); }
+      .body { flex: 1; min-width: 0; }
+      .eyebrow { font-size: 17px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+      .title { margin-top: 4px; font-size: 31px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
+      .detail { margin-top: 6px; font-size: 22px; color: var(--muted); line-height: 1.3; }
+      .pill { flex: none; margin-top: 4px; border-radius: 999px; padding: 8px 18px; font-size: 21px; font-weight: 700; }
+      .pill.ok { background: rgba(45,212,191,0.12); color: var(--accent); }
+      .pill.wait { background: rgba(251,191,36,0.12); color: var(--warn); }
+      .pill.bad { background: rgba(248,113,113,0.12); color: var(--danger); }
+      .divider { display: flex; align-items: center; gap: 18px; font-size: 22px; font-weight: 500; color: var(--muted); padding: 4px 0; }
+      .divider::before, .divider::after { content: ""; flex: 1; height: 1.5px; background: var(--line); }
+      .tg {
+        background: #17212b; border: 1.5px solid #233140; border-radius: 22px 22px 22px 6px; padding: 22px 26px;
+        font-size: 24px; line-height: 1.4; color: #e8eef4;
+      }
+      .tg .from { font-size: 19px; font-weight: 600; color: #64b5ef; margin-bottom: 6px; }
+      .tg b { font-weight: 700; }
+      .tg code { font-family: "Geist Mono", monospace; font-size: 21px; color: #9fc7e8; }
+      .tg .btn { margin-top: 14px; text-align: center; border-radius: 12px; background: #2b5278; padding: 10px; font-size: 21px; font-weight: 600; }
+
+      /* Scene 5: summary */
+      #summary { width: 1120px; padding: 52px 60px; border-radius: 34px; background: var(--card); border: 1.5px solid var(--line); }
+      .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+      .stat .lbl { font-size: 30px; color: var(--muted); }
+      .stat .val { margin-top: 6px; font-size: 104px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; font-variant-numeric: tabular-nums; }
+      .bars { margin-top: 48px; display: flex; flex-direction: column; gap: 26px; }
+      .bars .bar-head { font-size: 24px; margin-bottom: 10px; }
+      .bars .bar { height: 18px; }
+
+      /* Scene 5b: earning pots */
+      #earn-head { font-size: 76px; font-weight: 700; letter-spacing: -0.04em; text-align: center; }
+      #earn-head span { color: var(--accent); }
+      #pots { margin-top: 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; width: 1500px; }
+      .pot { background: var(--card); border: 1.5px solid var(--line); border-radius: 30px; padding: 38px 42px; }
+      .pot-top { display: flex; justify-content: space-between; align-items: baseline; }
+      .pot-name { font-size: 34px; font-weight: 600; }
+      .pot-tag { font-size: 21px; color: var(--muted); }
+      .pot-val { margin-top: 14px; font-size: 84px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
+      .pot-val.sm { font-size: 46px; letter-spacing: -0.03em; line-height: 1.1; color: var(--accent); }
+      .pot-sub { margin-top: 12px; font-size: 24px; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+      .live { width: 14px; height: 14px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 0 6px rgba(45,212,191,0.18); }
+      .pot-desc { margin-top: 20px; font-size: 25px; line-height: 1.35; color: var(--fg); }
+      .pot-src { margin-top: 18px; font-size: 21px; color: var(--accent); font-weight: 500; }
+      .pot-src.warnc { color: var(--warn); }
+
+      /* Scene 6: wordmark */
+      #glow {
+        position: absolute; left: 50%; top: 46%; width: 1300px; height: 760px; margin: -380px 0 0 -650px; border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(45,212,191,0.28), rgba(45,212,191,0) 100%);
+      }
+      #wordmark { position: relative; font-size: 230px; font-weight: 800; letter-spacing: -0.06em; line-height: 1; }
+      #wordmark .dot { color: var(--accent); }
+      #tagline { position: relative; margin-top: 30px; font-size: 48px; font-weight: 500; letter-spacing: -0.02em; text-align: center; }
+      #tagline span { color: var(--muted); }
+      #chains { position: relative; margin-top: 46px; font-size: 24px; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; }
+
+      /* ---- Vertical (1080x1920) overrides ---- */
+      html, body, #root { width: 1080px; height: 1920px; }
+      #hook-title { font-size: 116px; line-height: 0.98; }
+      #hook-sub { font-size: 25px; }
+      #wallet-wrap { width: 920px; }
+      .bar-head { font-size: 32px; }
+      #gone { font-size: 84px; line-height: 1.05; }
+      #pivot { flex-direction: column; font-size: 96px; line-height: 1.05; }
+      #sim-head { top: 290px; padding: 0 70px; }
+      #sim-head h1 { font-size: 50px; }
+      #sim-head p { font-size: 23px; line-height: 1.35; }
+      .col { left: 60px; width: 960px; }
+      #thief-col { left: 60px; top: 470px; }
+      #guard-col { left: 60px; width: 960px; top: 770px; }
+      #summary { width: 960px; padding: 48px 50px; }
+      .stat .val { font-size: 86px; }
+      #earn-head { font-size: 84px; line-height: 1.05; }
+      #earn-head span { display: block; }
+      #pots { grid-template-columns: 1fr; width: 960px; gap: 28px; margin-top: 60px; }
+      #glow { width: 1000px; height: 1000px; margin: -500px 0 0 -500px; }
+      #tagline { font-size: 54px; line-height: 1.2; }
+      #tagline span { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="27.5" data-width="1080" data-height="1920">
+      <!-- Scene 1: hook -->
+      <div id="s1" class="clip center" data-start="0" data-duration="3.0" data-track-index="0">
+        <div id="vignette"></div>
+        <h1 id="hook-title">SOMEONE<br />HACKED<br /><span class="red">YOUR WALLET.</span></h1>
+        <p id="hook-sub" class="mono">owner key · vault 0x7a3f…c91e · <b>$1,000.00</b></p>
+      </div>
+
+      <!-- Scene 2: the ordinary wallet -->
+      <div id="s2" class="clip center" data-start="3.0" data-duration="3.34" data-track-index="0">
+        <div id="wallet-wrap">
+          <div class="bar-head"><span>Ordinary wallet</span><span class="pct" id="w-pct">0% stolen</span></div>
+          <div class="bar"><i id="w-bar"></i></div>
+          <p id="gone">One transaction. Gone.</p>
+        </div>
+        <p id="pivot"><span class="w">This one is a</span><span>Stash vault.</span></p>
+      </div>
+
+      <!-- Scenes 3-4: the drain simulation -->
+      <div id="s3" class="clip" data-start="6.34" data-duration="10.52" data-track-index="0">
+        <div id="sim-head">
+          <h1>What if someone stole the login?</h1>
+          <p>Every step runs against the real contract on Tempo. Nothing is sent and no money moves.</p>
+        </div>
+        <div id="thief-col" class="col">
+          <div class="card t" id="tc1">
+            <div class="av thief">🦹</div>
+            <div class="body"><p class="eyebrow">Thief</p><p class="title">Sends all $1,000.00 to their own wallet</p><p class="detail">Big amounts can't leave instantly.</p></div>
+            <span id="p1" class="pill ok">Blocked</span>
+          </div>
+          <div class="card t" id="tc2">
+            <div class="av thief">🦹</div>
+            <div class="body"><p class="eyebrow">Thief</p><p class="title">Takes the instant maximum: $50.00</p><p class="detail">Within today's instant limit, so it goes through.</p></div>
+            <span id="p2" class="pill bad">Went through</span>
+          </div>
+          <div class="card t" id="tc3">
+            <div class="av thief">🦹</div>
+            <div class="body"><p class="eyebrow">Thief</p><p class="title">Queues a withdrawal of the other $950.00</p><p class="detail">Has to wait 24h. Guardians get a Telegram alert.</p></div>
+            <span id="p3" class="pill wait">Waiting</span>
+          </div>
+          <div class="card t" id="tc4">
+            <div class="av thief">🦹</div>
+            <div class="body"><p class="eyebrow">Thief</p><p class="title">Raises the limits to $1 billion and cuts the wait to 1 hour</p><p class="detail">Loosening the rules waits 24h too, so any guardian can cancel it.</p></div>
+            <span id="p4" class="pill wait">Waiting</span>
+          </div>
+        </div>
+        <div id="guard-col" class="col">
+          <p class="divider g" id="g0">A guardian gets the Telegram alert</p>
+          <div class="tg g" id="g1">
+            <p class="from">Stash Alerts</p>
+            ⚠️ <b>Large withdrawal requested</b><br />$950.00 to <code>0x0000…dEaD</code><br />If you don't recognise it, <b>stop it</b> before then.
+            <div class="btn">Open guardian page</div>
+          </div>
+          <div class="card g" id="g2">
+            <div class="av guard">🛡️</div>
+            <div class="body"><p class="eyebrow">Guardian</p><p class="title">Cancels the $950.00 withdrawal</p><p class="detail">From the guardian page the alert links to.</p></div>
+            <span id="p5" class="pill ok">Stopped</span>
+          </div>
+          <div class="card g" id="g3">
+            <div class="av guard">🛡️</div>
+            <div class="body"><p class="eyebrow">Guardian</p><p class="title">Freezes the vault</p><p class="detail">Nothing can leave until the owner and an established guardian agree.</p></div>
+            <span id="p6" class="pill ok">Stopped</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 5: summary -->
+      <div id="s5" class="clip center" data-start="16.86" data-duration="3.16" data-track-index="0">
+        <div id="summary">
+          <div class="stats">
+            <div class="stat"><p class="lbl">Thief got</p><p class="val" style="color: var(--danger)">$50.00</p></div>
+            <div class="stat"><p class="lbl">Still safe</p><p class="val" id="safe" style="color: var(--accent)">$0.00</p></div>
+          </div>
+          <div class="bars">
+            <div><div class="bar-head"><span>Stash vault</span><span class="pct">5% stolen</span></div><div class="bar"><i id="b-stash"></i></div></div>
+            <div><div class="bar-head"><span>Ordinary wallet</span><span class="pct">100% stolen</span></div><div class="bar"><i id="b-ord"></i></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 5b: it earns -->
+      <div id="s5b" class="clip center" data-start="20.02" data-duration="4.72" data-track-index="0">
+        <h2 id="earn-head">And while it waits, <span>it earns.</span></h2>
+        <div id="pots">
+          <div class="pot" id="pot1">
+            <div class="pot-top"><p class="pot-name">Save pot</p><span class="pot-tag">earns on Base</span></div>
+            <p class="pot-val">$950.00</p>
+            <p class="pot-sub"><i class="live"></i>$950.00 earning · $0.00 not earning</p>
+            <p class="pot-desc">A second vault with the same rules and guardians, where your dollars earn interest.</p>
+            <p class="pot-src">Curated Morpho USDC vault</p>
+          </div>
+          <div class="pot" id="pot2">
+            <div class="pot-top"><p class="pot-name">Growth pot</p><span class="pot-tag">Solana · beta</span></div>
+            <p class="pot-val sm">Protected Earn Hylo USD</p>
+            <p class="pot-desc">Via Reflect. You hold the senior (protected) side: others absorb the first losses in exchange for extra yield.</p>
+            <p class="pot-src warnc">Higher yield, more risk. Half your savings at most, by default.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 6: wordmark -->
+      <div id="s6" class="clip center" data-start="24.74" data-duration="2.76" data-track-index="0">
+        <div id="glow"></div>
+        <h1 id="wordmark">Stash<span class="dot">.</span></h1>
+        <p id="tagline">Save and gain interest. <span>A hack can't drain you.</span></p>
+        <p id="chains">Tempo · Base · Solana</p>
+      </div>
+
+      <!-- Audio -->
+      <audio id="music" data-start="0" data-duration="27.5" data-track-index="10" data-volume="0.34" data-fade-in="1.5" data-fade-out="1.4" src="assets/music/happy-beats-business-moves-vol-9-by-ende-dot-app.mp3"></audio>
+      <audio id="sfx-hook" data-start="0.12" data-duration="0.6" data-track-index="11" data-volume="0.8" src="assets/sfx/impactSoft_heavy_003.ogg"></audio>
+      <audio id="sfx-bar" data-start="3.7" data-duration="0.3" data-track-index="12" data-volume="0.7" src="assets/sfx/impactSoft_medium_001.ogg"></audio>
+      <audio id="sfx-pivot" data-start="4.75" data-duration="0.3" data-track-index="13" data-volume="0.6" src="assets/sfx/bong_001.ogg"></audio>
+      <audio id="sfx-c1" data-start="6.34" data-duration="0.6" data-track-index="14" data-volume="0.45" src="assets/sfx/card-slide-1.ogg"></audio>
+      <audio id="sfx-deny" data-start="6.66" data-duration="0.4" data-track-index="15" data-volume="0.35" src="assets/sfx/error_006.ogg"></audio>
+      <audio id="sfx-c2" data-start="7.92" data-duration="0.6" data-track-index="16" data-volume="0.45" src="assets/sfx/card-slide-1.ogg"></audio>
+      <audio id="sfx-c3" data-start="9.5" data-duration="0.6" data-track-index="17" data-volume="0.45" src="assets/sfx/card-slide-1.ogg"></audio>
+      <audio id="sfx-c4" data-start="11.06" data-duration="0.6" data-track-index="18" data-volume="0.45" src="assets/sfx/card-slide-1.ogg"></audio>
+      <audio id="sfx-ping" data-start="12.65" data-duration="0.6" data-track-index="19" data-volume="0.7" src="assets/sfx/impactMetal_light_002.ogg"></audio>
+      <audio id="sfx-g1" data-start="14.0" data-duration="0.4" data-track-index="20" data-volume="0.6" src="assets/sfx/drop_002.ogg"></audio>
+      <audio id="sfx-g2" data-start="15.06" data-duration="0.4" data-track-index="21" data-volume="0.6" src="assets/sfx/drop_002.ogg"></audio>
+      <audio id="sfx-sum" data-start="16.86" data-duration="0.3" data-track-index="22" data-volume="0.65" src="assets/sfx/impactSoft_medium_004.ogg"></audio>
+      <audio id="sfx-earn" data-start="20.02" data-duration="0.3" data-track-index="24" data-volume="0.55" src="assets/sfx/bong_001.ogg"></audio>
+      <audio id="sfx-pot1" data-start="21.06" data-duration="0.6" data-track-index="25" data-volume="0.45" src="assets/sfx/card-slide-1.ogg"></audio>
+      <audio id="sfx-pot2" data-start="22.12" data-duration="0.6" data-track-index="26" data-volume="0.45" src="assets/sfx/card-slide-1.ogg"></audio>
+      <audio id="sfx-logo" data-start="24.74" data-duration="0.65" data-track-index="23" data-volume="0.75" src="assets/sfx/impactBell_heavy_003.ogg"></audio>
+    </div>
+
+    <script>
+      const RMS = window.STASH_RMS || [];
+      const glow = document.getElementById("glow");
+      const tl = gsap.timeline({
+        paused: true,
+        // Audio-reactive: the wordmark glow breathes with the music's loudness (per 30fps frame).
+        onUpdate() {
+          const t = tl.time();
+          if (t < 24.74) return;
+          const e = RMS[Math.min(RMS.length - 1, Math.floor(t * 30))] || 0;
+          glow.style.opacity = String(0.55 + e * 0.45);
+          glow.style.transform = "scale(" + (0.96 + e * 0.08) + ")";
+        },
+      });
+
+      // Scene 1: hook
+      tl.fromTo("#hook-title", { scale: 1.14, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "power4.out" }, 0.1);
+      tl.fromTo("#vignette", { opacity: 0 }, { opacity: 1, duration: 1.2, ease: "power2.out" }, 0.1);
+      tl.fromTo("#hook-sub", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.8);
+      tl.to("#hook-title", { scale: 1.04, duration: 2.4, ease: "none" }, 0.55);
+
+      // Scene 2: ordinary wallet gets drained in one go, then the pivot
+      tl.fromTo("#wallet-wrap", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 3.0);
+      const wp = { v: 0 };
+      tl.fromTo("#w-bar", { width: "0%" }, { width: "100%", duration: 0.55, ease: "power3.in" }, 3.15);
+      tl.to(wp, { v: 100, duration: 0.55, ease: "power3.in", onUpdate: () => (document.getElementById("w-pct").textContent = Math.round(wp.v) + "% stolen") }, 3.15);
+      tl.fromTo("#gone", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.3, ease: "power3.out" }, 3.7);
+      tl.to("#wallet-wrap", { opacity: 0, y: -30, duration: 0.35, ease: "power2.in" }, 4.45);
+      // beat-locked: 4.75s (beat on the grid, nearest landing after the wallet exits)
+      tl.fromTo("#pivot", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" }, 4.75);
+      tl.to("#pivot", { opacity: 0, x: -80, duration: 0.3, ease: "power2.in" }, 6.04);
+
+      // Scene 3: thief moves, one card per 3rd beat
+      // beat-locked: 6.34s (strong cue) — first thief card
+      // beat-grid: cards at 6.34, 7.92, 9.50, 11.06
+      tl.fromTo("#sim-head", { opacity: 0, y: -14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 6.34);
+      [6.34, 7.92, 9.5, 11.06].forEach((t, i) => {
+        tl.fromTo("#tc" + (i + 1), { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.42, ease: "power3.out" }, t);
+        tl.fromTo("#p" + (i + 1), { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, t + 0.3);
+      });
+      // Earlier thief cards dim as the next arrives, keeping the eye on the newest move.
+      tl.to("#tc1", { opacity: 0.6, duration: 0.3 }, 7.92);
+      tl.to("#tc2", { opacity: 0.6, duration: 0.3 }, 9.5);
+      tl.to("#tc3", { opacity: 0.6, duration: 0.3 }, 11.06);
+
+      // Scene 4: the tide turns — thief stack steps aside, guardian column arrives
+      tl.to("#thief-col", { x: 182, y: -300, scale: 0.62, opacity: 0.55, duration: 0.6, ease: "power3.inOut" }, 12.2);
+      tl.to("#sim-head", { opacity: 0, duration: 0.3 }, 12.2);
+      // beat-locked: 12.65s (strong cue) — the Telegram alert
+      tl.fromTo("#g0", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 12.4);
+      tl.fromTo("#g1", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 12.65);
+      [14.0, 15.06].forEach((t, i) => {
+        tl.fromTo("#g" + (2 + i), { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.42, ease: "power3.out" }, t - 0.3);
+        tl.fromTo("#p" + (5 + i), { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.4)" }, t);
+      });
+      tl.to("#s3", { opacity: 0, scale: 0.97, duration: 0.35, ease: "power2.in" }, 16.5);
+
+      // Scene 5: the receipt
+      tl.fromTo("#summary", { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" }, 16.86);
+      const safe = { v: 0 };
+      tl.to(safe, { v: 950, duration: 1.0, ease: "power2.out", onUpdate: () => (document.getElementById("safe").textContent = "$" + safe.v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")) }, 17.0);
+      tl.fromTo("#b-stash", { width: "0%" }, { width: "5%", duration: 0.6, ease: "power2.out" }, 17.3);
+      tl.fromTo("#b-ord", { width: "0%" }, { width: "100%", duration: 0.8, ease: "power2.out" }, 17.45);
+      tl.to("#summary", { opacity: 0, scale: 1.03, duration: 0.3, ease: "power2.in" }, 19.72);
+
+      // Scene 5b: the money earns while it's protected
+      // beat-grid: heading 20.02, pots 21.06 and 22.12
+      tl.fromTo("#earn-head", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 20.02);
+      tl.fromTo("#pot1", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 21.06);
+      tl.fromTo("#pot2", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 22.12);
+      tl.fromTo(".live", { opacity: 0.35 }, { opacity: 1, duration: 0.53, ease: "sine.inOut", repeat: 5, yoyo: true }, 21.3);
+      tl.to("#s5b", { opacity: 0, scale: 1.02, duration: 0.3, ease: "power2.in" }, 24.44);
+
+      // Scene 6: wordmark
+      // beat-locked: 24.74s
+      tl.fromTo("#wordmark", { opacity: 0, scale: 1.12 }, { opacity: 1, scale: 1, duration: 0.55, ease: "power4.out" }, 24.74);
+      tl.fromTo("#glow", { opacity: 0 }, { opacity: 0.6, duration: 0.6 }, 24.74);
+      tl.fromTo("#tagline", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 25.12);
+      tl.fromTo("#chains", { opacity: 0 }, { opacity: 1, duration: 0.45 }, 25.5);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
