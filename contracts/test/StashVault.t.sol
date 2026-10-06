@@ -47,7 +47,7 @@ contract StashVaultTest is Test {
     function setUp() public {
         usd = new MockUSD();
         yieldVault = new MockYieldVault(usd);
-        factory = new StashFactory(address(this), treasury, new address[](0));
+        factory = new StashFactory(address(this), treasury, 0, new address[](0));
 
         vm.prank(owner);
         vault = StashVault(factory.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, TIMELOCK)));
@@ -529,7 +529,7 @@ contract StashVaultTest is Test {
     function test_Yield_FactoryDefaultAdapterIsAllowedFromStart() public {
         address[] memory targets = new address[](1);
         targets[0] = address(yieldVault);
-        StashFactory f = new StashFactory(address(this), treasury, targets);
+        StashFactory f = new StashFactory(address(this), treasury, 0, targets);
         vm.prank(saver);
         StashVault v = StashVault(f.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, TIMELOCK)));
         assertTrue(v.isYieldTarget(address(yieldVault)));
@@ -545,6 +545,133 @@ contract StashVaultTest is Test {
         vm.prank(owner);
         vm.expectRevert(StashVault.NothingPending.selector);
         vault.activateYieldTarget(thief);
+    }
+
+    /// Yield shares gain value over time; the limits must count what they're worth, not $1 each.
+    function test_Yield_SharesCountedAtUnderlyingValueForLimits() public {
+        address[] memory targets = new address[](1);
+        targets[0] = address(yieldVault);
+        StashFactory f = new StashFactory(address(this), treasury, 0, targets);
+        vm.prank(saver);
+        StashVault v = StashVault(f.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, TIMELOCK)));
+        usd.mint(address(v), 1_000 * USD);
+        vm.prank(saver);
+        v.depositToYield(address(yieldVault), 1_000 * USD);
+
+        usd.mint(address(yieldVault), 1_000 * USD); // interest doubles the share price
+
+        uint256 worth200 = yieldVault.convertToShares(200 * USD); // ~100 shares
+        vm.prank(saver);
+        vm.expectRevert(StashVault.DailyLimitExceeded.selector);
+        v.withdraw(address(yieldVault), thief, worth200);
+
+        uint256 worth99 = yieldVault.convertToShares(99 * USD);
+        vm.prank(saver);
+        v.withdraw(address(yieldVault), thief, worth99);
+        assertApproxEqAbs(v.remainingDailyLimit(), 1e18, 1e13);
+    }
+
+    /// Shares left behind after a guardian removes an adapter keep their real value in the limits.
+    function test_Yield_RemovedAdapterSharesStillValued() public {
+        address[] memory targets = new address[](1);
+        targets[0] = address(yieldVault);
+        StashFactory f = new StashFactory(address(this), treasury, 0, targets);
+        vm.prank(saver);
+        StashVault v = StashVault(f.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, TIMELOCK)));
+        usd.mint(address(v), 1_000 * USD);
+        vm.prank(saver);
+        v.depositToYield(address(yieldVault), 1_000 * USD);
+        usd.mint(address(yieldVault), 1_000 * USD);
+
+        vm.prank(guardian);
+        v.removeYieldTarget(address(yieldVault));
+        assertTrue(v.isYieldShare(address(yieldVault)));
+
+        uint256 worth200 = yieldVault.convertToShares(200 * USD);
+        vm.prank(saver);
+        vm.expectRevert(StashVault.DailyLimitExceeded.selector);
+        v.withdraw(address(yieldVault), thief, worth200);
+    }
+
+    // ------------------------------------------------------------------
+    // Beta deposit cap (set on the factory; can only block new deposits)
+    // ------------------------------------------------------------------
+
+    function _cappedVault(uint256 capUsd) internal returns (StashFactory f, StashVault v) {
+        f = new StashFactory(address(this), treasury, capUsd * 1e18, new address[](0));
+        vm.prank(saver);
+        v = StashVault(f.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, TIMELOCK)));
+        usd.mint(saver, 10_000 * USD);
+        vm.prank(saver);
+        usd.approve(address(v), type(uint256).max);
+    }
+
+    function test_Cap_BlocksDepositsAboveCapAndFreesRoomOnWithdraw() public {
+        (, StashVault v) = _cappedVault(500);
+        vm.startPrank(saver);
+        v.deposit(address(usd), 400 * USD);
+        vm.expectRevert(StashVault.DepositCapExceeded.selector);
+        v.deposit(address(usd), 200 * USD);
+
+        v.withdraw(address(usd), stranger, 100 * USD); // sending money out frees room
+        v.deposit(address(usd), 200 * USD);
+        vm.stopPrank();
+        assertEq(v.netDepositedUsd(), 500e18);
+    }
+
+    function test_Cap_AppliesToGoalDepositsAndAutoSave() public {
+        (, StashVault v) = _cappedVault(500);
+        vm.startPrank(saver);
+        v.deposit(address(usd), 490 * USD);
+        uint32 goalId = v.createGoal(address(usd), uint64(block.timestamp + 30 days), 0);
+        vm.expectRevert(StashVault.DepositCapExceeded.selector);
+        v.depositToGoal(goalId, 20 * USD);
+        v.authorizeAutoSave(address(usd), 20 * USD, 1 days, 0); // saver pays itself
+        vm.expectRevert(StashVault.DepositCapExceeded.selector);
+        v.pullAutoSave(saver);
+        vm.stopPrank();
+    }
+
+    function test_Cap_OnlyFactoryOwnerChangesItAndZeroMeansNoCap() public {
+        (StashFactory f, StashVault v) = _cappedVault(500);
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", stranger));
+        f.setDepositCap(0);
+
+        f.setDepositCap(0); // applies to existing vaults
+        vm.prank(saver);
+        v.deposit(address(usd), 5_000 * USD);
+        assertEq(v.netDepositedUsd(), 5_000e18);
+    }
+
+    // ------------------------------------------------------------------
+    // Waiting period: owners choose it, never below 24 hours
+    // ------------------------------------------------------------------
+
+    function test_RevertWhen_WaitingPeriodBelow24Hours() public {
+        vm.prank(saver);
+        vm.expectRevert(StashVault.InvalidPolicy.selector);
+        factory.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, 23 hours));
+
+        vm.prank(owner);
+        vm.expectRevert(StashVault.InvalidPolicy.selector);
+        vault.proposePolicy(_policy(DAILY_LIMIT, LARGE, 23 hours));
+    }
+
+    function test_WaitingPeriod_OwnerChoosesLongerAndLengtheningIsImmediate() public {
+        vm.prank(saver);
+        StashVault v = StashVault(factory.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, 72 hours)));
+        (uint64 timelock,,) = v.policy();
+        assertEq(timelock, 72 hours);
+
+        vm.prank(owner);
+        vault.proposePolicy(_policy(DAILY_LIMIT, LARGE, 7 days)); // tightening: applies now
+        (timelock,,) = vault.policy();
+        assertEq(timelock, 7 days);
+        vm.prank(owner);
+        uint256 id = vault.requestWithdrawal(address(usd), stranger, 1_000 * USD);
+        (, uint64 unlockAt,,,) = vault.pendingWithdrawals(id);
+        assertEq(unlockAt, block.timestamp + 7 days);
     }
 
     // ------------------------------------------------------------------

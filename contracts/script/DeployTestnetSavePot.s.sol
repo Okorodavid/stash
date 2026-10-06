@@ -16,18 +16,19 @@ contract TestnetSaveVault is ERC4626 {
 
 /// Deploys the stand-in Save vault and a StashFactory that allowlists it.
 ///   forge script script/DeployTestnetSavePot.s.sol --rpc-url base_sepolia --broadcast --account deployer
-/// Env: FACTORY_OWNER, TREASURY, USDC (Base Sepolia USDC).
+/// Env: FACTORY_OWNER, TREASURY, USDC (Base Sepolia USDC), DEPOSIT_CAP_USD (optional, whole dollars).
 contract DeployTestnetSavePot is Script {
     function run() external returns (StashFactory factory, TestnetSaveVault saveVault) {
         address factoryOwner = vm.envAddress("FACTORY_OWNER");
         address treasury = vm.envAddress("TREASURY");
         IERC20 usdc = IERC20(vm.envAddress("USDC"));
+        uint256 depositCapUsd = vm.envOr("DEPOSIT_CAP_USD", uint256(0)) * 1e18;
 
         vm.startBroadcast();
         saveVault = new TestnetSaveVault(usdc);
         address[] memory targets = new address[](1);
         targets[0] = address(saveVault);
-        factory = new StashFactory(factoryOwner, treasury, targets);
+        factory = new StashFactory(factoryOwner, treasury, depositCapUsd, targets);
         vm.stopBroadcast();
 
         console.log("chain id        ", block.chainid);

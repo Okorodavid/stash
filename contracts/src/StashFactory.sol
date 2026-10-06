@@ -7,25 +7,33 @@ import {StashVault} from "./StashVault.sol";
 
 /// @title StashFactory
 /// @notice Deploys one StashVault clone per user at a predictable address.
-/// @dev The factory owner (a multisig in production) can only change where goal break fees go.
-///      It has no way to touch funds held in any vault. The yield-adapter allowlist every new
+/// @dev The factory owner (a multisig in production) can only change where goal break fees go
+///      and the beta deposit cap, which can only block new deposits. It has no way to touch
+///      funds held in any vault. The yield-adapter allowlist every new
 ///      vault starts with is fixed at deploy; vault owners can add more only through a timelock.
 contract StashFactory is Ownable2Step {
     address public immutable implementation;
     address public treasury;
+    /// @notice Max net USD (18 decimals) each vault accepts through its deposit functions; 0 = no cap.
+    uint256 public depositCapUsd;
     address[] internal _defaultYieldTargets;
     mapping(address owner => address vault) public vaultOf;
 
     event VaultCreated(address indexed owner, address indexed vault);
     event TreasuryUpdated(address treasury);
+    event DepositCapUpdated(uint256 capUsd);
 
     error VaultExists();
 
-    constructor(address initialOwner, address treasury_, address[] memory defaultYieldTargets_) Ownable(initialOwner) {
+    constructor(address initialOwner, address treasury_, uint256 depositCapUsd_, address[] memory defaultYieldTargets_)
+        Ownable(initialOwner)
+    {
         implementation = address(new StashVault());
         treasury = treasury_;
+        depositCapUsd = depositCapUsd_;
         _defaultYieldTargets = defaultYieldTargets_;
         emit TreasuryUpdated(treasury_);
+        emit DepositCapUpdated(depositCapUsd_);
     }
 
     /// @param guardians 1–3 guardians; the app passes the Stash guardian plus any the user adds.
@@ -52,6 +60,11 @@ contract StashFactory is Ownable2Step {
     function setTreasury(address treasury_) external onlyOwner {
         treasury = treasury_;
         emit TreasuryUpdated(treasury_);
+    }
+
+    function setDepositCap(uint256 capUsd) external onlyOwner {
+        depositCapUsd = capUsd;
+        emit DepositCapUpdated(capUsd);
     }
 
     function _salt(address owner_) internal pure returns (bytes32) {

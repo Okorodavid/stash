@@ -10,6 +10,7 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 
 interface IStashFactory {
     function treasury() external view returns (address);
+    function depositCapUsd() external view returns (uint256);
 }
 
 /// @title StashVault
@@ -64,7 +65,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
     }
 
     uint256 public constant MAX_GUARDIANS = 3;
-    uint64 public constant MIN_TIMELOCK = 1 hours;
+    uint64 public constant MIN_TIMELOCK = 24 hours; // owners pick their own waiting period, 24h or longer
     uint64 public constant MAX_TIMELOCK = 30 days;
     uint64 public constant WINDOW = 1 days;
     uint16 public constant MAX_BREAK_FEE_BPS = 1_000; // 10%
@@ -93,12 +94,19 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
 
     mapping(address adapter => bool) public isYieldTarget;
     mapping(address adapter => uint64) public yieldTargetEffectiveAt;
+    /// @dev Set when an adapter is activated and never cleared, so shares left after a guardian
+    ///      removes the adapter are still valued at their underlying dollars by the limits.
+    mapping(address adapter => bool) public isYieldShare;
 
     uint32 public goalCount;
     mapping(uint32 id => Goal) public goals;
     mapping(address token => uint256) public lockedBalance;
 
     mapping(address source => AutoSave) public autoSaves;
+
+    /// @notice USD (18 decimals) deposited minus USD sent out, checked against the factory's beta
+    ///         deposit cap. Yield earned doesn't count; tokens sent straight to the vault bypass it.
+    uint256 public netDepositedUsd;
 
     event Deposited(address indexed token, address indexed from, uint256 amount);
     event Withdrawn(address indexed token, address indexed to, uint256 amount);
@@ -151,6 +159,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
     error InvalidGoal();
     error AutoSaveInactive();
     error AutoSaveNotDue();
+    error DepositCapExceeded();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -197,6 +206,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         policy = policy_;
         for (uint256 i; i < yieldTargets.length; ++i) {
             isYieldTarget[yieldTargets[i]] = true;
+            isYieldShare[yieldTargets[i]] = true;
             emit YieldTargetActivated(yieldTargets[i]);
         }
         emit PolicyUpdated(policy_);
@@ -210,6 +220,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         if (amount == 0) revert InvalidAmount();
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         emit Deposited(token, msg.sender, amount);
+        _recordDeposit(token, amount);
     }
 
     // ---------------------------------------------------------------------
@@ -229,6 +240,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         lastSpendAt = uint64(block.timestamp);
         IERC20(token).safeTransfer(to, amount);
         emit Withdrawn(token, to, amount);
+        _recordOutflow(token, amount);
     }
 
     /// @notice Queue any withdrawal; it can be executed after the timelock unless cancelled.
@@ -260,6 +272,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         IERC20(p.token).safeTransfer(p.to, p.amount);
         emit WithdrawalExecuted(id);
         emit Withdrawn(p.token, p.to, p.amount);
+        _recordOutflow(p.token, p.amount);
     }
 
     function cancelWithdrawal(uint256 id) external onlyOwnerOrGuardian {
@@ -400,6 +413,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         if (block.timestamp < effectiveAt) revert StillLocked();
         delete yieldTargetEffectiveAt[adapter];
         isYieldTarget[adapter] = true;
+        isYieldShare[adapter] = true;
         emit YieldTargetActivated(adapter);
     }
 
@@ -455,6 +469,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         if (amount == 0) revert InvalidAmount();
         IERC20(g.token).safeTransferFrom(msg.sender, address(this), amount);
         emit Deposited(g.token, msg.sender, amount);
+        _recordDeposit(g.token, amount);
         _lock(g, id, amount);
     }
 
@@ -472,6 +487,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
             address treasury = IStashFactory(factory).treasury();
             if (fee > 0 && treasury != address(0)) {
                 IERC20(g.token).safeTransfer(treasury, fee);
+                _recordOutflow(g.token, fee);
             } else {
                 fee = 0;
             }
@@ -517,6 +533,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         uint32 goalId = s.goalId;
         IERC20(token).safeTransferFrom(source, address(this), amount);
         emit AutoSavePulled(source, token, amount);
+        _recordDeposit(token, amount);
         if (goalId != 0) _lock(goals[goalId], goalId, amount);
     }
 
@@ -574,6 +591,18 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         return spent > refilled ? spent - refilled : 0;
     }
 
+    function _recordDeposit(address token, uint256 amount) internal {
+        uint256 next = netDepositedUsd + _toUsd(token, amount);
+        uint256 cap = IStashFactory(factory).depositCapUsd();
+        if (cap != 0 && next > cap) revert DepositCapExceeded();
+        netDepositedUsd = next;
+    }
+
+    function _recordOutflow(address token, uint256 amount) internal {
+        uint256 usd = _toUsd(token, amount);
+        netDepositedUsd = netDepositedUsd > usd ? netDepositedUsd - usd : 0;
+    }
+
     function _goal(uint32 id) internal view returns (Goal storage g) {
         g = goals[id];
         if (g.token == address(0)) revert UnknownGoal();
@@ -590,7 +619,13 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
         if (p.largeThreshold == 0) revert InvalidPolicy();
     }
 
+    /// @dev Yield shares (e.g. Morpho) are worth more than $1 as interest accrues, so value them
+    ///      at their underlying assets; otherwise withdrawing shares would slip past the limits.
     function _toUsd(address token, uint256 amount) internal view returns (uint256) {
+        if (isYieldShare[token]) {
+            IERC4626 shares = IERC4626(token);
+            return _toUsd(shares.asset(), shares.convertToAssets(amount));
+        }
         uint8 dec = IERC20Metadata(token).decimals();
         return dec <= 18 ? amount * 10 ** (18 - dec) : amount / 10 ** (dec - 18);
     }
