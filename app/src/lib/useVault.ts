@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
-import { depositRoom, net, publicClient, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
+import { depositRoom, net, publicClient, readOwnerMove, readPending, readVault, vaultCall, type Call, type OwnerMove, type Pending } from "./chain";
 import { DEFAULT_POLICY, type Token } from "./config";
 import { useSender } from "./useSender";
 
-export type { Pending };
+export type { OwnerMove, Pending };
 
 export type Goal = {
   id: number;
@@ -38,6 +38,8 @@ export type VaultState = {
   pendingPolicy: { timelock: number; dailyLimitUsd: bigint; largeThresholdUsd: bigint; effectiveAt: number } | null;
   /** Dollars (18 decimals) the vault can still take in during the beta; null = no cap. */
   depositRoomUsd: bigint | null;
+  /** Moving the vault to a new owner key; null if this vault predates the feature. */
+  ownerMove: OwnerMove | null;
   guardians: Address[];
   balances: { token: Token; available: bigint; total: bigint; wallet: bigint }[];
   pending: Pending[];
@@ -76,6 +78,7 @@ export function useVault() {
         timelock: Number(DEFAULT_POLICY.timelock),
         pendingPolicy: null,
         depositRoomUsd: await depositRoom(net.factory, null),
+        ownerMove: null,
         guardians: [],
         balances: net.tokens.map((token, i) => ({ token, available: 0n, total: 0n, wallet: walletBalances[i] })),
         pending: [],
@@ -138,6 +141,7 @@ export function useVault() {
               effectiveAt: Number(proposed[1]),
             },
       depositRoomUsd: room,
+      ownerMove: await readOwnerMove(vault, guardians),
       guardians,
       balances,
       pending: await readPending(vault, nextId),
@@ -222,6 +226,9 @@ export function useVault() {
     setRules: (next: { timelock: bigint; dailyLimit: bigint; largeThreshold: bigint }) =>
       send("Saving your rules", [v("proposePolicy", [next])]),
     applyRules: () => send("Applying the new rules", [v("applyPolicy")]),
+    /** Names the vault's new owner key; it queues once a guardian names the same key. */
+    nominateOwner: (newOwner: Address) => send("Requesting the move", [v("nominateOwner", [newOwner])]),
+    applyOwnerChange: () => send("Moving your vault", [v("applyOwnerChange")]),
     cancelRules: () => send("Cancelling the rules change", [v("cancelPolicy")]),
   };
 

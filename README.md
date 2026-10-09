@@ -16,6 +16,7 @@ See [PLAN.md](PLAN.md) for the full build plan.
 | Thief queues a big withdrawal | Any guardian (Stash, the user's second phone, a trusted person) can cancel it or freeze the vault. |
 | Thief loosens the rules | Raising limits, shortening the waiting period, removing a guardian, or adding a yield adapter is itself timelocked; guardians can cancel. |
 | Thief plants their own guardian | New guardians can cancel/freeze immediately but only help *unfreeze* after a full timelock, and an established guardian can veto them. |
+| Recovery key leaks (thief and owner share the key) | The vault moves to a new owner key once the owner key and an established guardian name the same key, after the waiting period. Only guardians can cancel the move, so the thief can neither move the vault alone nor block the rescue, and it works while the vault is frozen. |
 | Malicious approval / arbitrary call | The vault has no generic `call`/`execute` and no user-chosen approvals. The only approval it ever makes is to an allowlisted ERC-4626 adapter, reset to zero after each deposit. |
 | Stash disappears | No guardian approval is ever *required*. The owner can always withdraw: instantly within the allowance, the rest after the timelock, using the static [exit page](exit/index.html). |
 | Stash admin goes rogue | The factory owner (a Safe multisig on mainnet) can only change where goal break fees go and the beta deposit cap, which can only block new deposits. No function lets anyone but the vault owner move funds. |

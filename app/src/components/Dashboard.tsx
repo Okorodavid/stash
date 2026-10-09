@@ -13,6 +13,7 @@ import { STASH_GUARDIAN } from "@/lib/config";
 import { useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
 import RecoveryCard, { RecoverySettings } from "./Recovery";
+import MoveVaultCard from "./MoveVault";
 import AlertsButton from "./AlertsButton";
 import SavePotCard from "./SavePot";
 import PotInfo from "./PotInfo";
@@ -165,6 +166,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
 
         <div hidden={tab !== "account"} className="space-y-4">
           {ctx.owner && <RecoverySettings owner={ctx.owner} />}
+          <MoveVaultCard ctx={ctx} />
         </div>
 
         <div className="lg:hidden">

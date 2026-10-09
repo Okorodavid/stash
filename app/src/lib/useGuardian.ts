@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi } from "./abis";
-import { net, publicClient, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
+import { net, publicClient, readOwnerMove, readPending, readVault, vaultCall, type Call, type OwnerMove, type Pending } from "./chain";
 import { useSender } from "./useSender";
 
 export type GuardianInfo = {
@@ -26,6 +26,8 @@ export type GuardianViewState = {
   pending: Pending[];
   /** A proposed loosening of the vault's limits, if any. */
   pendingPolicy: { dailyLimitUsd: bigint; largeThresholdUsd: bigint; timelock: number; effectiveAt: number } | null;
+  /** Moving the vault to a new owner key; null if this vault predates the feature. */
+  ownerMove: OwnerMove | null;
 };
 
 /** A vault seen by one of its guardians (or anyone: actions only succeed for guardians). */
@@ -71,6 +73,7 @@ export function useGuardian(vault: Address) {
       guardians,
       totalUsd: totals.reduce((a, b) => a + b, 0),
       pending: await readPending(vault, nextId),
+      ownerMove: await readOwnerMove(vault, guardianList as Address[]),
       pendingPolicy:
         Number(effectiveAt) === 0
           ? null
@@ -109,6 +112,9 @@ export function useGuardian(vault: Address) {
     vetoGuardian: (g: Address) => send("Removing new guardian", [v("vetoGuardian", [g])]),
     cancelGuardianRemoval: (g: Address) => send("Keeping guardian", [v("cancelGuardianRemoval", [g])]),
     cancelPolicy: () => send("Blocking limit change", [v("cancelPolicy")]),
+    nominateOwner: (newOwner: Address) => send("Naming the new owner", [v("nominateOwner", [newOwner])]),
+    cancelOwnerChange: () => send("Stopping the move", [v("cancelOwnerChange")]),
+    applyOwnerChange: () => send("Completing the move", [v("applyOwnerChange")]),
   };
 
   return { account, isGuardian: Boolean(me), me, state, busy, error, actions };

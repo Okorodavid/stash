@@ -74,3 +74,33 @@ export async function depositRoom(factory: Address, vault: Address | null, key: 
   const used = vault ? ((await readVault(vault, "netDepositedUsd", [], key).catch(() => 0n)) as bigint) : 0n;
   return cap > used ? cap - used : 0n;
 }
+
+/** A vault's owner-key move: each side's choice and any queued move. */
+export type OwnerMove = {
+  ownerNominee: Address | null;
+  /** Each guardian's choice (only guardians that named someone). */
+  guardianNominees: { guardian: Address; nominee: Address }[];
+  pendingOwner: Address | null;
+  pendingOwnerAt: number; // 0 = none queued
+};
+
+/** null when the vault predates owner moves (created by an older factory). */
+export async function readOwnerMove(vault: Address, guardians: Address[], key: NetworkKey = HOME): Promise<OwnerMove | null> {
+  const zero = "0x0000000000000000000000000000000000000000";
+  try {
+    const [ownerNominee, pendingOwner, pendingOwnerAt, ...picks] = (await Promise.all([
+      readVault(vault, "ownerNominee", [], key),
+      readVault(vault, "pendingOwner", [], key),
+      readVault(vault, "pendingOwnerAt", [], key),
+      ...guardians.map((g) => readVault(vault, "guardianNominee", [g], key)),
+    ])) as [Address, Address, bigint, ...Address[]];
+    return {
+      ownerNominee: ownerNominee === zero ? null : ownerNominee,
+      guardianNominees: guardians.map((guardian, i) => ({ guardian, nominee: picks[i] })).filter((g) => g.nominee !== zero),
+      pendingOwner: pendingOwner === zero ? null : pendingOwner,
+      pendingOwnerAt: Number(pendingOwnerAt),
+    };
+  } catch {
+    return null;
+  }
+}

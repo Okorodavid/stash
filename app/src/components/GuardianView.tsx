@@ -1,14 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import type { Address } from "viem";
-import { net } from "@/lib/chain";
+import { getAddress, isAddress, type Address } from "viem";
+import { net, type OwnerMove } from "@/lib/chain";
 import { useGuardian } from "@/lib/useGuardian";
 import { useNow } from "@/lib/useNow";
 import AlertsButton from "./AlertsButton";
 import HoldButton from "./HoldButton";
 import { HourglassIcon, SnowflakeIcon } from "./Icons";
-import { btn, btnGhost, card, short, timeLeft, usd } from "./ui";
+import { btn, btnGhost, card, input, short, timeLeft, usd } from "./ui";
 
 const money = (v: bigint) => usd(v, 18);
 
@@ -103,6 +104,19 @@ export default function GuardianView({ vault }: { vault: Address }) {
         </section>
       )}
 
+      {isGuardian && state.ownerMove && (
+        <OwnerMoveSection
+          move={state.ownerMove}
+          owner={state.owner}
+          me={account}
+          iAmEstablished={iAmEstablished}
+          frozen={state.frozen}
+          now={now}
+          busy={!!busy}
+          actions={actions}
+        />
+      )}
+
       <section className={card}>
         <p className="mb-2 font-medium">Guardians</p>
         <ul className="space-y-2 text-sm">
@@ -179,5 +193,105 @@ export default function GuardianView({ vault }: { vault: Address }) {
         </button>
       </footer>
     </div>
+  );
+}
+
+const same = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+
+/**
+ * Guardian side of moving the vault to a new owner key. A move needs the owner key and an established
+ * guardian to name the same key, then waits; only guardians can cancel it.
+ */
+function OwnerMoveSection({
+  move,
+  owner,
+  me,
+  iAmEstablished,
+  frozen,
+  now,
+  busy,
+  actions,
+}: {
+  move: OwnerMove;
+  owner: Address;
+  me?: Address;
+  iAmEstablished: boolean;
+  frozen: boolean;
+  now: number;
+  busy: boolean;
+  actions: ReturnType<typeof useGuardian>["actions"];
+}) {
+  const [to, setTo] = useState("");
+  const mine = move.guardianNominees.find((g) => same(g.guardian, me))?.nominee ?? null;
+  const valid = isAddress(to) && !same(to, owner);
+
+  if (move.pendingOwnerAt > 0) {
+    const ready = now > 0 && now >= move.pendingOwnerAt;
+    return (
+      <section className={`${card} border-warn`}>
+        <p className="font-medium">This vault is moving to a new owner</p>
+        <p className="mt-1 text-sm">
+          New owner <span className="font-mono">{short(move.pendingOwner!)}</span>.{" "}
+          {ready ? "The wait is over." : now > 0 ? `Happens in ${timeLeft(move.pendingOwnerAt - now)}.` : ""}
+        </p>
+        <p className="mt-1 text-xs text-muted">If the owner didn&apos;t ask for this, stop it. The owner&apos;s login can&apos;t.</p>
+        <div className="mt-2 flex gap-2">
+          <button className={`${btnGhost} text-danger`} disabled={busy || !iAmEstablished} onClick={() => actions.cancelOwnerChange()}>
+            Stop the move
+          </button>
+          {ready && (
+            <button className={btnGhost} disabled={busy} onClick={() => actions.applyOwnerChange()}>
+              Complete the move
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className={card}>
+      <p className="font-medium">Move to a new owner login</p>
+      {move.ownerNominee && !same(move.ownerNominee, mine) && (
+        <div className="mt-2 rounded-lg bg-warn/10 px-3 py-2 text-sm">
+          <p>
+            The owner asked to move this vault to <span className="font-mono">{short(move.ownerNominee)}</span>.
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Call the owner and check the address with them first. Someone with a stolen login could ask for this too.
+          </p>
+          <button
+            className={`${btnGhost} mt-2`}
+            disabled={busy || !iAmEstablished}
+            onClick={() => actions.nominateOwner(move.ownerNominee!)}
+          >
+            I&apos;ve checked with the owner: confirm
+          </button>
+        </div>
+      )}
+      <p className="mt-2 text-sm text-muted">
+        If the owner&apos;s recovery key leaked, help them move the vault to a new login. {frozen ? "" : "Freeze the vault first. "}
+        Get their new address from them directly, enter it here, then they confirm it from their old login.
+      </p>
+      {mine && (
+        <p className="mt-2 text-sm">
+          You named <span className="font-mono">{short(mine)}</span>. Waiting for the owner to confirm it.
+        </p>
+      )}
+      <input
+        className={`${input} mt-2 font-mono text-sm`}
+        placeholder="Owner's new address 0x…"
+        value={to}
+        onChange={(e) => setTo(e.target.value.trim())}
+      />
+      <button
+        className={`${btnGhost} mt-2 w-full`}
+        disabled={busy || !valid || !iAmEstablished}
+        onClick={() => actions.nominateOwner(getAddress(to) as Address).then((h) => h && setTo(""))}
+      >
+        Name the new owner
+      </button>
+      {!iAmEstablished && <p className="mt-1 text-xs text-muted">You were added recently, so you can&apos;t do this yet.</p>}
+    </section>
   );
 }

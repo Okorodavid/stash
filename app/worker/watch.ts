@@ -142,6 +142,24 @@ export async function scan(key: NetworkKey, ns: NetworkState): Promise<Alert[]> 
       case "Unfrozen":
         push("info", `✅ <b>Vault unfrozen</b> ${where}.`);
         break;
+      case "OwnerNominated":
+        push(
+          "warn",
+          `🔑 <b>Request to move this vault to a new owner</b> ${where}\nBy <code>${short(a.by)}</code>, new owner <code>${a.newOwner}</code>.\nIt needs both the owner's login and a guardian. If nobody you trust asked for this, don't confirm it.`,
+        );
+        break;
+      case "OwnerChangeQueued":
+        push(
+          "warn",
+          `⚠️ <b>Vault moving to a new owner</b> ${where}: <code>${a.newOwner}</code>\nHappens ${when(a.effectiveAt)} unless a guardian stops it.`,
+        );
+        break;
+      case "OwnerChangeCancelled":
+        push("info", `🛑 Owner move stopped ${where} by <code>${short(a.by)}</code>.`);
+        break;
+      case "OwnerChanged":
+        push("info", `🔑 <b>Vault moved to a new owner</b> ${where}: <code>${a.newOwner}</code>. The old login no longer controls it.`);
+        break;
       case "WithdrawalCancelled":
         push("info", `🛑 Withdrawal #${a.id} cancelled ${where} by <code>${short(a.by)}</code>.`);
         break;
