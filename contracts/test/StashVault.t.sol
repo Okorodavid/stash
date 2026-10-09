@@ -675,6 +675,147 @@ contract StashVaultTest is Test {
     }
 
     // ------------------------------------------------------------------
+    // Owner key change (rescue after a leaked key)
+    // ------------------------------------------------------------------
+
+    function test_OwnerChange_OwnerAndGuardianAgreeThenWaits() public {
+        address newKey = makeAddr("newKey");
+        vm.prank(owner);
+        vault.nominateOwner(newKey);
+        assertEq(vault.pendingOwnerAt(), 0); // the owner key alone queues nothing
+
+        vm.prank(guardian);
+        vault.nominateOwner(newKey);
+        assertEq(vault.pendingOwner(), newKey);
+        assertEq(vault.pendingOwnerAt(), block.timestamp + TIMELOCK);
+
+        vm.expectRevert(StashVault.StillLocked.selector);
+        vault.applyOwnerChange();
+
+        vm.warp(block.timestamp + TIMELOCK);
+        vm.prank(stranger); // anyone can complete it
+        vault.applyOwnerChange();
+        assertEq(vault.owner(), newKey);
+        assertEq(factory.vaultOf(newKey), address(vault));
+        assertEq(factory.vaultOf(owner), address(0));
+
+        vm.prank(owner);
+        vm.expectRevert(StashVault.NotOwner.selector);
+        vault.withdraw(address(usd), owner, 1 * USD); // the old key is useless
+        vm.prank(newKey);
+        vault.withdraw(address(usd), newKey, 1 * USD);
+    }
+
+    /// A thief with the owner key can't move the vault to their own key.
+    function test_StolenKey_CannotMoveVaultAlone() public {
+        vm.prank(owner); // thief holding the owner key
+        vault.nominateOwner(thief);
+        vm.warp(block.timestamp + 30 days);
+        vm.expectRevert(StashVault.NothingPending.selector);
+        vault.applyOwnerChange();
+        assertEq(vault.owner(), owner);
+    }
+
+    /// No guardian can take the vault: a guardian's nomination needs the owner key to agree.
+    function test_OwnerChange_GuardianAloneCannotMoveVault() public {
+        address guardianPick = makeAddr("guardianPick");
+        vm.prank(guardian);
+        vault.nominateOwner(guardianPick);
+        vm.prank(stashGuardian); // even two guardians agreeing isn't enough
+        vault.nominateOwner(guardianPick);
+        vm.warp(block.timestamp + 30 days);
+        vm.expectRevert(StashVault.NothingPending.selector);
+        vault.applyOwnerChange();
+    }
+
+    /// Leaked key: guardians freeze, the guardian names the user's new key, the user confirms with the
+    /// old key. The thief (same key) can neither redirect nor cancel the move, and it completes while frozen.
+    function test_LeakedKey_RescueToNewKey() public {
+        address newKey = makeAddr("newKey");
+        vm.prank(guardian);
+        vault.freeze();
+        vm.prank(guardian);
+        vault.nominateOwner(newKey);
+        vm.prank(owner); // the real user, with the old key
+        vault.nominateOwner(newKey);
+        assertEq(vault.pendingOwner(), newKey);
+
+        vm.startPrank(owner); // the thief, with the same key
+        vm.expectRevert(StashVault.OwnerChangePending.selector);
+        vault.nominateOwner(thief);
+        vm.expectRevert(StashVault.NotGuardian.selector);
+        vault.cancelOwnerChange();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + TIMELOCK);
+        vault.applyOwnerChange();
+        assertEq(vault.owner(), newKey);
+        assertTrue(vault.frozen()); // still frozen until the new key and a guardian unfreeze
+        vm.prank(guardian);
+        vault.approveUnfreeze();
+        vm.prank(newKey);
+        vault.unfreeze();
+        vm.prank(newKey);
+        vault.withdraw(address(usd), newKey, 50 * USD);
+    }
+
+    function test_OwnerChange_AnyEstablishedGuardianCancels() public {
+        address newKey = makeAddr("newKey");
+        vm.prank(stashGuardian);
+        vault.nominateOwner(newKey);
+        vm.prank(owner);
+        vault.nominateOwner(newKey);
+        vm.prank(guardian);
+        vault.cancelOwnerChange();
+        assertEq(vault.pendingOwnerAt(), 0);
+        assertEq(vault.ownerNominee(), address(0)); // votes reset too
+        vm.warp(block.timestamp + TIMELOCK);
+        vm.expectRevert(StashVault.NothingPending.selector);
+        vault.applyOwnerChange();
+    }
+
+    /// A guardian the thief just added can't vote for the thief's key or cancel a rescue.
+    function test_StolenKey_PlantedGuardianCannotVoteOrCancel() public {
+        vm.startPrank(owner); // thief
+        vault.addGuardian(thiefGuardian);
+        vault.nominateOwner(thief);
+        vm.stopPrank();
+        vm.prank(thiefGuardian);
+        vm.expectRevert(StashVault.NotGuardian.selector);
+        vault.nominateOwner(thief);
+
+        address newKey = makeAddr("newKey");
+        vm.prank(guardian);
+        vault.nominateOwner(newKey);
+        vm.prank(owner); // real user
+        vault.nominateOwner(newKey);
+        vm.prank(thiefGuardian);
+        vm.expectRevert(StashVault.InvalidGuardian.selector);
+        vault.cancelOwnerChange();
+    }
+
+    function test_RevertWhen_NewOwnerInvalid() public {
+        vm.startPrank(owner);
+        vm.expectRevert(StashVault.InvalidAddress.selector);
+        vault.nominateOwner(guardian); // a guardian can't also be the owner
+        vm.expectRevert(StashVault.InvalidAddress.selector);
+        vault.nominateOwner(owner);
+        vm.stopPrank();
+
+        vm.prank(saver);
+        factory.createVault(_guardians(), _policy(DAILY_LIMIT, LARGE, TIMELOCK));
+        vm.prank(owner);
+        vm.expectRevert(StashVault.InvalidAddress.selector);
+        vault.nominateOwner(saver); // already owns a vault
+    }
+
+    function test_RevertWhen_FactoryEntryMovedByNonVault() public {
+        vm.prank(stranger);
+        vm.expectRevert(StashFactory.NotVault.selector);
+        factory.vaultOwnerChanged(owner, stranger);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 

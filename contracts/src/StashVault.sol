@@ -11,6 +11,8 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 interface IStashFactory {
     function treasury() external view returns (address);
     function depositCapUsd() external view returns (uint256);
+    function vaultOf(address owner) external view returns (address);
+    function vaultOwnerChanged(address oldOwner, address newOwner) external;
 }
 
 /// @title StashVault
@@ -19,6 +21,8 @@ interface IStashFactory {
 ///         - Large withdrawals wait out a timelock; the owner or any guardian can cancel.
 ///         - 1–3 guardians. Any one can freeze or cancel; none can move funds.
 ///         - Loosening any security setting (limits, removing a guardian, new yield adapter) is timelocked.
+///         - The owner key can be replaced (e.g. after it leaks) only when the owner key and an established
+///           guardian name the same new key; the move then waits a timelock that only guardians can cancel.
 ///         - Savings goals lock funds until a date (early break pays a fee).
 ///         - Auto-save pulls a fixed amount per interval from a wallet that opted in.
 ///         - No generic call/execute and no user-chosen approvals: funds move only through the functions below.
@@ -108,6 +112,14 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
     ///         deposit cap. Yield earned doesn't count; tokens sent straight to the vault bypass it.
     uint256 public netDepositedUsd;
 
+    // Owner key change. The owner key and each established guardian name a new owner; when the owner
+    // and a guardian agree, the move is queued for a timelock. Only guardians can cancel it, so a thief
+    // holding a leaked owner key can neither move the vault alone nor block the real owner's rescue.
+    address public ownerNominee; // the owner key's choice
+    mapping(address guardian => address) public guardianNominee; // each guardian's choice
+    address public pendingOwner;
+    uint64 public pendingOwnerAt; // 0 = no move queued
+
     event Deposited(address indexed token, address indexed from, uint256 amount);
     event Withdrawn(address indexed token, address indexed to, uint256 amount);
     event WithdrawalRequested(uint256 indexed id, address indexed token, address indexed to, uint256 amount, uint64 unlockAt);
@@ -135,6 +147,10 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
     event AutoSaveAuthorized(address indexed source, address indexed token, uint256 amount, uint64 interval, uint32 goalId);
     event AutoSaveRevoked(address indexed source, address indexed by);
     event AutoSavePulled(address indexed source, address indexed token, uint256 amount);
+    event OwnerNominated(address indexed by, address indexed newOwner);
+    event OwnerChangeQueued(address indexed newOwner, uint64 effectiveAt);
+    event OwnerChangeCancelled(address indexed by);
+    event OwnerChanged(address indexed oldOwner, address indexed newOwner);
 
     error NotOwner();
     error NotGuardian();
@@ -160,6 +176,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
     error AutoSaveInactive();
     error AutoSaveNotDue();
     error DepositCapExceeded();
+    error OwnerChangePending();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -352,6 +369,72 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
 
     function guardians() external view returns (address[] memory) {
         return _guardians;
+    }
+
+    // ---------------------------------------------------------------------
+    // Owner key change (rescue after a leaked key, or moving to a new login)
+    // ---------------------------------------------------------------------
+
+    /// @notice The owner key or an established guardian names the new owner key. When the owner's
+    ///         choice and any established guardian's choice match, the move is queued for the timelock.
+    ///         Either side can go first. Neither the owner key nor a guardian can move the vault alone.
+    function nominateOwner(address newOwner) external {
+        if (newOwner == address(0) || newOwner == owner || guardianEstablishedAt[newOwner] != 0) revert InvalidAddress();
+        if (IStashFactory(factory).vaultOf(newOwner) != address(0)) revert InvalidAddress(); // one vault per owner
+        if (pendingOwnerAt != 0) revert OwnerChangePending();
+        bool agreed;
+        if (msg.sender == owner) {
+            ownerNominee = newOwner;
+            uint256 n = _guardians.length;
+            for (uint256 i; i < n; ++i) {
+                address g = _guardians[i];
+                if (guardianNominee[g] == newOwner && _isEstablished(g)) agreed = true;
+            }
+        } else {
+            if (!_isEstablished(msg.sender)) revert NotGuardian();
+            guardianNominee[msg.sender] = newOwner;
+            agreed = ownerNominee == newOwner;
+        }
+        emit OwnerNominated(msg.sender, newOwner);
+        if (agreed) {
+            pendingOwner = newOwner;
+            pendingOwnerAt = uint64(block.timestamp) + policy.timelock;
+            emit OwnerChangeQueued(newOwner, pendingOwnerAt);
+        }
+    }
+
+    /// @notice Any established guardian can stop a queued move. The owner key can't: if it leaked, the
+    ///         thief must not be able to block the rescue.
+    function cancelOwnerChange() external onlyGuardian {
+        if (!_isEstablished(msg.sender)) revert InvalidGuardian();
+        if (pendingOwnerAt == 0) revert NothingPending();
+        _clearOwnerChange();
+        emit OwnerChangeCancelled(msg.sender);
+    }
+
+    /// @notice Anyone can complete a queued move once the timelock has passed. Works while frozen, so
+    ///         guardians can freeze first and the vault still reaches its new key.
+    function applyOwnerChange() external {
+        uint64 at = pendingOwnerAt;
+        if (at == 0) revert NothingPending();
+        if (block.timestamp < at) revert StillLocked();
+        address old = owner;
+        address next = pendingOwner;
+        if (guardianEstablishedAt[next] != 0) revert InvalidAddress(); // became a guardian meanwhile
+        _clearOwnerChange();
+        owner = next;
+        IStashFactory(factory).vaultOwnerChanged(old, next);
+        emit OwnerChanged(old, next);
+    }
+
+    function _clearOwnerChange() internal {
+        delete pendingOwner;
+        delete pendingOwnerAt;
+        delete ownerNominee;
+        uint256 n = _guardians.length;
+        for (uint256 i; i < n; ++i) {
+            delete guardianNominee[_guardians[i]];
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -568,6 +651,7 @@ contract StashVault is Initializable, ReentrancyGuardTransient {
 
     function _removeGuardian(address guardian) internal {
         delete guardianRemovalAt[guardian];
+        delete guardianNominee[guardian];
         delete guardianEstablishedAt[guardian];
         if (unfreezeApprovedBy == guardian) delete unfreezeApprovedBy;
         uint256 n = _guardians.length;

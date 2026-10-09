@@ -22,8 +22,10 @@ contract StashFactory is Ownable2Step {
     event VaultCreated(address indexed owner, address indexed vault);
     event TreasuryUpdated(address treasury);
     event DepositCapUpdated(uint256 capUsd);
+    event VaultOwnerChanged(address indexed vault, address indexed oldOwner, address indexed newOwner);
 
     error VaultExists();
+    error NotVault();
 
     constructor(address initialOwner, address treasury_, uint256 depositCapUsd_, address[] memory defaultYieldTargets_)
         Ownable(initialOwner)
@@ -60,6 +62,16 @@ contract StashFactory is Ownable2Step {
     function setTreasury(address treasury_) external onlyOwner {
         treasury = treasury_;
         emit TreasuryUpdated(treasury_);
+    }
+
+    /// @notice Called by a vault when its owner key changes, so `vaultOf` follows the new owner.
+    ///         Only the vault currently recorded for `oldOwner` can move its own entry.
+    function vaultOwnerChanged(address oldOwner, address newOwner) external {
+        if (vaultOf[oldOwner] != msg.sender) revert NotVault();
+        if (vaultOf[newOwner] != address(0)) revert VaultExists();
+        delete vaultOf[oldOwner];
+        vaultOf[newOwner] = msg.sender;
+        emit VaultOwnerChanged(msg.sender, oldOwner, newOwner);
     }
 
     function setDepositCap(uint256 capUsd) external onlyOwner {
