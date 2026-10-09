@@ -28,10 +28,10 @@ Unaudited hackathon code. During the beta, each vault accepts a capped amount of
 
 | Chain | StashFactory | Notes |
 |---|---|---|
-| Tempo (4217) | [`0xCf97969137d1DEbf884e769b03C0AEEEF777F4BF`](https://explore.tempo.xyz/address/0xCf97969137d1DEbf884e769b03C0AEEEF777F4BF) | Main account (OUSD) |
-| Base (8453) | [`0xCf97969137d1DEbf884e769b03C0AEEEF777F4BF`](https://basescan.org/address/0xCf97969137d1DEbf884e769b03C0AEEEF777F4BF) | Save pot, earning in [Gauntlet USDC Prime](https://app.morpho.org/base/vault/0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61) (Morpho) |
+| Tempo (4217) | [`0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC`](https://explore.tempo.xyz/address/0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC) | Main account (OUSD) |
+| Base (8453) | [`0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC`](https://basescan.org/address/0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC) | Save pot, earning in [Gauntlet USDC Prime](https://app.morpho.org/base/vault/0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61) (Morpho) |
 
-Beta deposit cap: $5,000 per vault. The factory owner is currently a single deployer key; it moves to a Safe multisig with `transferOwnership` (no redeploy).
+Beta deposit cap: $5,000 per vault. An earlier factory (`0xCf97…F4BF`, no owner-key move) is retired and has no vaults. The factory owner is currently a single deployer key; it moves to a Safe multisig with `transferOwnership` (no redeploy).
 
 ## Repo layout
 
