@@ -55,7 +55,7 @@ const REASONS: Record<string, string> = {
 
 const toUnits = (usd18: bigint, decimals: number) => usd18 / 10n ** BigInt(18 - decimals);
 const dollars = (v: bigint, decimals: number) =>
-  Number(formatUnits(v, decimals)).toLocaleString(undefined, { style: "currency", currency: "USD" });
+  Number(formatUnits(v, decimals)).toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" });
 
 /** Reads what a thief would be up against. */
 export async function snapshot(vault: Address): Promise<VaultSnapshot> {

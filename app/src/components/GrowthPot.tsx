@@ -111,7 +111,7 @@ export default function GrowthPotCard({
       {state ? (
         <>
           <p className="mt-2 text-3xl font-semibold">
-            {state.valueUsd.toLocaleString(undefined, { style: "currency", currency: "USD" })}
+            {state.valueUsd.toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" })}
           </p>
           <p className="text-sm text-muted">
             Earning about {(state.apyBps / 100).toFixed(1)}% a year right now (rate changes) · wallet {usd(state.usdc, 6)} USDC

@@ -30,7 +30,7 @@ const GrowthPotCard = dynamic(() => import("./GrowthPot"), {
 import { AutoSaveCard, GoalsCard } from "./Savings";
 import { btn, btnGhost, btnWarn, card, input, short, timeLeft, usd, waitAdj, waitText, type Loaded } from "./ui";
 
-const dollars = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+const dollars = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" });
 
 export default function Dashboard() {
   const { logout } = usePrivy();

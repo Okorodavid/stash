@@ -31,7 +31,7 @@ export default function GuardianView({ vault }: { vault: Address }) {
         <p className="text-sm text-muted">You are guarding</p>
         <p className="font-mono text-sm">{short(vault)}</p>
         <p className="mt-1 text-3xl font-semibold">
-          {state.totalUsd.toLocaleString(undefined, { style: "currency", currency: "USD" })}
+          {state.totalUsd.toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" })}
         </p>
         <p className="mt-1 text-sm">
           {state.frozen ? <span className="font-medium text-danger">Frozen: nothing can leave.</span> : "Active"}
