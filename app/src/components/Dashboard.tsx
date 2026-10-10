@@ -362,7 +362,7 @@ function ProtectSummary({ ctx }: { ctx: Loaded }) {
       : {
           cls: "bg-accent/10 text-accent",
           title: "Protected",
-          body: `A stolen login can move at most ${usd(s.dailyLimitUsd, 18)} a day instantly. Anything more waits ${waitText(s.timelock)}.`,
+          body: `A stolen Key can move at most ${usd(s.dailyLimitUsd, 18)} a day instantly. Anything more waits ${waitText(s.timelock)}.`,
         };
   return (
     <section className={`${card} space-y-4`}>

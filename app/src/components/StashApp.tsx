@@ -85,9 +85,9 @@ function PreviewBanner({ onSignUp }: { onSignUp: () => void }) {
   return (
     <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="font-semibold">Save in dollars. A stolen password can&apos;t drain it.</p>
+        <p className="font-semibold">Save and gain interest. A Hack can&apos;t drain you.</p>
         <p className="text-sm text-muted">
-          You&apos;re looking around with an empty sample vault. Sign up with email or Google to start saving.
+          Sign up with email or Google to start saving.
         </p>
       </div>
       <button

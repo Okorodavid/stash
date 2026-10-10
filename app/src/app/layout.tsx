@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Stash",
-  description: "Save in dollars. A stolen password can't drain it.",
+  description: "Save and gain interest. A Hack can't drain you.",
   applicationName: "Stash",
   appleWebApp: { capable: true, title: "Stash", statusBarStyle: "default" },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },

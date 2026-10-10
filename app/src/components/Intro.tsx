@@ -20,7 +20,7 @@ export default function Intro({
         </>
       ) : (
         <>
-          <h1 className="text-3xl font-semibold leading-tight">Save in dollars. A stolen password can&apos;t drain it.</h1>
+          <h1 className="text-3xl font-semibold leading-tight">Save and gain interest. A Hack can&apos;t drain you.</h1>
           <ul className="space-y-2 text-muted">
             <li>• Small amounts move instantly, up to your daily limit.</li>
             <li>• Big withdrawals wait 24 hours or longer (you choose), and your guardians can stop them.</li>
