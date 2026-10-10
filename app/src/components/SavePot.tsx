@@ -6,6 +6,8 @@ import type { useSavePot } from "@/lib/useSavePot";
 import PotInfo from "./PotInfo";
 import { useNow } from "@/lib/useNow";
 import { btn, btnGhost, card, input, usd, waitAdj, type Loaded } from "./ui";
+import { HOME_IS_SAVE } from "@/lib/config";
+import { usePreview } from "@/lib/preview";
 
 export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnType<typeof useSavePot> }) {
   const { enabled, network, usdc, state, busy, error, actions } = pot;
@@ -13,6 +15,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
   const [out, setOut] = useState("");
   const now = useNow();
   if (!enabled) return null;
+  if (HOME_IS_SAVE) return <EarnCard pot={pot} />;
 
   const testnet = Boolean(network.chain.testnet);
   const title = (
@@ -131,6 +134,57 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
           })}
         </ul>
       )}
+      <PotInfo pot="save" />
+    </section>
+  );
+}
+
+/**
+ * Base as the home chain: the main account and the Save pot are the same Base vault, so "Save" is
+ * just putting part of it to work in Morpho (and back). Money never leaves the vault's protection.
+ */
+function EarnCard({ pot }: { pot: ReturnType<typeof useSavePot> }) {
+  const { usdc, state, busy, error, actions } = pot;
+  const { preview } = usePreview();
+  const [amount, setAmount] = useState("");
+  if (!state) return null;
+  // Visitors and people without a vault see it too; the button then asks them to sign up / create one.
+  let parsed = 0n;
+  try {
+    parsed = amount ? parseUnits(amount, usdc.decimals) : 0n;
+  } catch {
+    parsed = 0n;
+  }
+  return (
+    <section className={card}>
+      <div className="flex items-baseline justify-between">
+        <p className="font-medium">Earn on your savings</p>
+        <span className="text-xs text-muted">Morpho on Base</span>
+      </div>
+      <p className="text-3xl font-semibold">{usd(state.earning, usdc.decimals)}</p>
+      <p className="text-sm text-muted">
+        earning · {usd(state.idle, usdc.decimals)} in your main account, not earning
+        {state.frozen && <span className="text-danger"> · frozen</span>}
+      </p>
+      {busy && <p className="mt-2 rounded-lg bg-accent/10 px-3 py-2 text-sm">{busy}…</p>}
+      {error && <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+      <div className="mt-3 flex gap-2">
+        <input className={input} inputMode="decimal" placeholder="$ amount" value={amount} onChange={(e) => setAmount(e.target.value.replace(",", "."))} />
+        <button
+          className={btnGhost}
+          disabled={!preview && (!!busy || parsed === 0n || parsed > state.idle || state.frozen || !state.adapter)}
+          onClick={() => actions.earnFromVault(parsed).then((h) => h && setAmount(""))}
+        >
+          Start earning
+        </button>
+      </div>
+      {!preview && parsed > state.idle && <p className="mt-1 text-xs text-warn">That&apos;s more than your main account holds.</p>}
+      {state.earning > 0n && (
+        <button className={`${btnGhost} mt-2 w-full`} disabled={!!busy || state.frozen} onClick={() => actions.stopEarning()}>
+          Stop earning (back to your main account)
+        </button>
+      )}
+      <p className="mt-2 text-xs text-muted">Earning money stays in your vault, behind the same limits and guardians.</p>
       <PotInfo pot="save" />
     </section>
   );

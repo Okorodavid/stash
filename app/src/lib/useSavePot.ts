@@ -161,6 +161,8 @@ export function useSavePot() {
       if (state?.adapter) calls.push(v("depositToYield", [state.adapter, amount]));
       return send("Saving to your Save pot", calls);
     },
+    /** Base as home: put money already in the vault to work (it stays in the vault, as shares). */
+    earnFromVault: (amount: bigint) => send("Starting to earn", [v("depositToYield", [state?.adapter, amount])]),
     /** Stop earning: redeem all shares back to idle USDC inside the pot. */
     stopEarning: () => send("Moving out of the earning vault", [v("redeemFromYield", [state?.adapter, state?.shares])]),
     /** Back to the user's own wallet: instant within the allowance, otherwise via the waiting period. */

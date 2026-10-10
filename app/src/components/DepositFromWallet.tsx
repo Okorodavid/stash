@@ -5,6 +5,7 @@ import { useConnectWallet, type ConnectedWallet } from "@privy-io/react-auth";
 import { erc20Abi, formatUnits, parseUnits, type Address } from "viem";
 import { HAS_TEST_FAUCET, fundFromTestFaucet, net, publicClient, vaultCall } from "@/lib/chain";
 import { usePreview } from "@/lib/preview";
+import { HOME_CHAIN } from "@/lib/config";
 import { useSender } from "@/lib/useSender";
 import { btnGhost, card, input, short, usd, type Loaded } from "./ui";
 
@@ -118,7 +119,7 @@ export default function DepositFromWallet({ ctx }: { ctx: Loaded }) {
             ) : (
               <p className="mt-2 text-xs text-muted">
                 This wallet has no {token.symbol} on {net.chain.name} yet. Move dollars to {net.chain.name} first, for example with
-                relay.link. The wallet also needs a few cents of a {net.chain.name} stablecoin for the fee.
+                relay.link. The wallet also needs {HOME_CHAIN === "base" ? "a little ETH" : `a few cents of a ${net.chain.name} stablecoin`} for the fee.
               </p>
             ))}
           {ext.busy && <p className="mt-2 rounded-lg bg-accent/10 px-3 py-2 text-sm">{ext.busy}…</p>}

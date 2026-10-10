@@ -14,6 +14,8 @@ const state = load();
 // Testnet and mainnet share one app (a switch in the header), so watch every network with a factory.
 const networks = (Object.keys(NETWORKS) as NetworkKey[]).filter((k) => NETWORKS[k].factory);
 const modeOf = (key: NetworkKey) => (NETWORKS[key].chain.testnet ? "testnet" : "mainnet");
+// Vaults on Base open the guardian page with Base as the home chain.
+const homeOf = (key: NetworkKey) => (key === "base" || key === "baseSepolia" ? "base" : "tempo");
 
 for (const key of networks) {
   if (!state.networks[key]) {
@@ -35,7 +37,7 @@ async function deliver(alerts: Alert[]) {
         const link =
           person === owner
             ? { text: "Open Stash", url: APP_URL }
-            : { text: "Open guardian page", url: `${APP_URL}/guardian?vault=${alert.vault}&network=${modeOf(alert.network)}` };
+            : { text: "Open guardian page", url: `${APP_URL}/guardian?vault=${alert.vault}&network=${modeOf(alert.network)}&home=${homeOf(alert.network)}` };
         try {
           await send(chatId, alert.html, link);
         } catch (e) {

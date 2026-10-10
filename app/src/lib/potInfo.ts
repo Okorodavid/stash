@@ -1,6 +1,8 @@
 // What each pot depends on, shown to users so they can judge protocol risk themselves.
 // Keep entries factual and sourced; update when protocols or their status change.
 
+import { HOME_CHAIN } from "./config";
+
 export type Dependency = { name: string; role: string; url?: string };
 
 // Public source repo, once published (shown as the vault contract link).
@@ -11,8 +13,15 @@ export const POT_INFO: Record<"vault" | "save" | "growth", PotInfo> = {
   vault: {
     dependsOn: [
       { name: "Stash vault contract", role: "Holds your dollars and enforces limits, waiting period and guardians", url: REPO },
-      { name: "Open USD (OUSD)", role: "The dollar stablecoin itself, issued by Open Standard on Tempo", url: "https://joinopenstandard.com" },
-      { name: "Tempo", role: "The blockchain the vault runs on", url: "https://tempo.xyz" },
+      ...(HOME_CHAIN === "base"
+        ? [
+            { name: "USDC (Circle)", role: "The dollar stablecoin itself", url: "https://www.circle.com/usdc" },
+            { name: "Base", role: "The blockchain the vault runs on", url: "https://base.org" },
+          ]
+        : [
+            { name: "Open USD (OUSD)", role: "The dollar stablecoin itself, issued by Open Standard on Tempo", url: "https://joinopenstandard.com" },
+            { name: "Tempo", role: "The blockchain the vault runs on", url: "https://tempo.xyz" },
+          ]),
     ],
     notes: [
       "No yield protocol: this money isn't lent out, so a DeFi hack elsewhere can't touch it.",

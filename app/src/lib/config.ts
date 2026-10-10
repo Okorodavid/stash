@@ -82,14 +82,52 @@ export function switchMode(next: Mode) {
 export const ASK_MAINNET_EVENT = "stash:ask-mainnet";
 export const askForMainnet = () => window.dispatchEvent(new Event(ASK_MAINNET_EVENT));
 
-/** Home network (Tempo): the main account. */
-export const HOME: NetworkKey = MODES[MODE].home;
+/**
+ * Where the main account lives: Tempo (default; fees in dollars) or Base (fees in ETH). Chosen per
+ * browser, or by `?home=tempo|base` in a link (guardian links carry it); applies on page load.
+ */
+export type HomeChain = "tempo" | "base";
+export const HOME_KEY = "stash:home";
+
+function readHome(): HomeChain {
+  if (typeof window === "undefined") return "tempo";
+  try {
+    const fromLink = new URLSearchParams(window.location.search).get("home");
+    if (fromLink === "tempo" || fromLink === "base") {
+      localStorage.setItem(HOME_KEY, fromLink);
+      return fromLink;
+    }
+    return localStorage.getItem(HOME_KEY) === "base" ? "base" : "tempo";
+  } catch {
+    return "tempo";
+  }
+}
+
+export const HOME_CHAIN: HomeChain = readHome();
+
+/** Moves the main account to the other chain (each chain has its own vault) and reloads. */
+export function switchHome(next: HomeChain) {
+  try {
+    localStorage.setItem(HOME_KEY, next);
+  } catch {
+    // Storage blocked: the link parameter below still carries the choice for this visit.
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("home", next);
+  window.location.href = url.toString();
+}
+
+/** Home network: the main account (Tempo by default, or Base). */
+export const HOME: NetworkKey = HOME_CHAIN === "base" ? MODES[MODE].save : MODES[MODE].home;
 
 /** Network hosting the Save pot (Base). Off when its factory isn't configured. */
 export const SAVE: NetworkKey = MODES[MODE].save;
 
+/** Main account and Save pot are the same Base vault: "Save" becomes earning on that vault. */
+export const HOME_IS_SAVE = HOME === SAVE;
+
 /** Vault the public drain test (and the signed-out preview's drain link) points at, per network. */
-export const DEMO_VAULT = MODES[MODE].demoVault;
+export const DEMO_VAULT = HOME_CHAIN === "tempo" ? MODES[MODE].demoVault : undefined;
 
 /** Stash service guardian, added to every new vault by default. Its key lives only in the worker. */
 export const STASH_GUARDIAN = env(process.env.NEXT_PUBLIC_STASH_GUARDIAN);

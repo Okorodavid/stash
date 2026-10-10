@@ -9,7 +9,7 @@ import {
   parseUnits,
   type Address,
 } from "viem";
-import { MODE, STASH_GUARDIAN } from "@/lib/config";
+import { HOME_CHAIN, HOME_IS_SAVE, MODE, STASH_GUARDIAN, switchHome, type HomeChain } from "@/lib/config";
 import { HAS_TEST_FAUCET } from "@/lib/chain";
 import { sampleVaultState, useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
@@ -147,7 +147,10 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
   const pot = useSavePot();
   const [growthUsd, setGrowthUsd] = useState<number | null>(null);
   const mainUsd = s.balances.reduce((sum, b) => sum + Number(formatUnits(b.total, b.token.decimals)), 0);
-  const saveUsd = pot.state ? Number(formatUnits(pot.state.idle + pot.state.earning, pot.usdc.decimals)) : 0;
+  // With Base as home, the main account already is the vault's idle USDC: only the earning part is extra.
+  const saveUsd = pot.state
+    ? Number(formatUnits(HOME_IS_SAVE ? pot.state.earning : pot.state.idle + pot.state.earning, pot.usdc.decimals))
+    : 0;
   const allUsd = mainUsd + saveUsd + (growthUsd ?? 0);
   const show = (t: Tab) => {
     setTab(t);
@@ -180,6 +183,12 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
 
         <div hidden={tab !== "home"} className="space-y-4">
           <Hero ctx={ctx} allUsd={allUsd} mainUsd={mainUsd} />
+          {HOME_IS_SAVE && ctx.owner && pot.state?.walletGas === 0n && (
+            <p className="rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn">
+              Your main account is on Base, where network fees are paid in ETH. Send a little ETH on Base to{" "}
+              <span className="font-mono">{short(ctx.owner)}</span> before saving or sending.
+            </p>
+          )}
           {s.pending.length > 0 && <PendingCard ctx={ctx} />}
           {ctx.owner && ctx.embedded && <RecoveryCard owner={ctx.owner} />}
           <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
@@ -221,6 +230,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
 
         <div hidden={tab !== "account"} className="space-y-4">
           {!ctx.owner && <PreviewAccountCard />}
+          <HomeChainCard />
           {ctx.owner && (ctx.embedded ? <RecoverySettings owner={ctx.owner} /> : <OwnKeyCard owner={ctx.owner} />)}
           <MoveVaultCard ctx={ctx} />
         </div>
@@ -291,6 +301,23 @@ function Hero({ ctx, allUsd, mainUsd }: { ctx: Loaded; allUsd: number; mainUsd: 
           <p className="text-sm text-muted">Your savings</p>
           <p className="truncate text-3xl font-semibold sm:text-4xl">{dollars(allUsd)}</p>
           <p className="mt-1 text-sm text-muted">Main account {dollars(mainUsd)}</p>
+          {/* Where the main account lives, switchable right here (each chain keeps its own vault). */}
+          <div className="mt-2 inline-flex rounded-full border border-line p-0.5" role="group" aria-label="Main account chain">
+            {HOME_CHAINS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                aria-pressed={HOME_CHAIN === c.id}
+                title={c.note}
+                onClick={() => c.id !== HOME_CHAIN && switchHome(c.id)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  HOME_CHAIN === c.id ? "bg-accent/15 text-accent" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <p className="mt-3 text-sm">
@@ -699,6 +726,7 @@ function CreateVault({
         guardians can stop it. You need at least one guardian.
       </p>
       <WaitPicker hours={hours} onChange={setHours} />
+      <HomeChainPicker />
       {STASH_GUARDIAN && (
         <p className="mt-2 text-sm">✓ Stash guardian included</p>
       )}
@@ -787,7 +815,7 @@ function GuardianLink({ vault }: { vault: string }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
     if (preview) return signUp();
-    const url = `${window.location.origin}/guardian?vault=${vault}&network=${MODE}`;
+    const url = `${window.location.origin}/guardian?vault=${vault}&network=${MODE}&home=${HOME_CHAIN}`;
     try {
       if (navigator.share) await navigator.share({ title: "Guard my Stash savings", url });
       else await navigator.clipboard.writeText(url);
@@ -988,6 +1016,47 @@ function RulesCard({ ctx }: { ctx: Loaded }) {
           Edit rules
         </button>
       )}
+    </section>
+  );
+}
+
+const HOME_CHAINS: { id: HomeChain; label: string; note: string }[] = [
+  { id: "tempo", label: "Tempo", note: "Recommended. Fees are paid in dollars (a fraction of a cent)." },
+  { id: "base", label: "Base", note: "Fees are paid in ETH, so your wallet needs a little ETH. Save and earn in the same vault." },
+];
+
+/** Where the main account lives. Each chain has its own vault; switching reloads the app. */
+function HomeChainPicker() {
+  return (
+    <div className="mt-3">
+      <p className="text-sm font-medium">Main account on</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {HOME_CHAINS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={`${btnGhost} text-left ${HOME_CHAIN === c.id ? "border-accent bg-accent/10" : ""}`}
+            onClick={() => c.id !== HOME_CHAIN && switchHome(c.id)}
+          >
+            <span className={`block font-semibold ${HOME_CHAIN === c.id ? "text-accent" : ""}`}>{c.label}</span>
+            <span className="block text-xs font-normal text-muted">{c.note}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Account tab: choose the main account's chain (each chain keeps its own vault). */
+function HomeChainCard() {
+  return (
+    <section className={card}>
+      <p className="font-medium">Main account network</p>
+      <p className="mt-1 text-sm text-muted">
+        Your main account lives on one chain. Switching shows that chain&apos;s vault; your vault on the other chain
+        stays where it is, with its own money and guardians.
+      </p>
+      <HomeChainPicker />
     </section>
   );
 }
