@@ -2,9 +2,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPublicClient, decodeEventLog, formatUnits, http, type Address, type PublicClient } from "viem";
+import { createPublicClient, decodeEventLog, fallback, formatUnits, http, type Address, type PublicClient } from "viem";
 import { stashFactoryAbi, stashVaultAbi } from "../src/lib/abis.ts";
-import { NETWORKS, type NetworkKey } from "../src/lib/config.ts";
+import { NETWORKS, RPC_URLS, type NetworkKey } from "../src/lib/config.ts";
 import type { NetworkState } from "./store.ts";
 
 export type Alert = { network: NetworkKey; vault: string; html: string; severity: "warn" | "info"; block?: bigint };
@@ -15,7 +15,8 @@ const clients = new Map<NetworkKey, PublicClient>();
 export function client(key: NetworkKey): PublicClient {
   let c = clients.get(key);
   if (!c) {
-    c = createPublicClient({ chain: NETWORKS[key].chain, transport: http() }) as PublicClient;
+    const transport = fallback([...RPC_URLS[key].map((u) => http(u)), http()]);
+    c = createPublicClient({ chain: NETWORKS[key].chain, transport }) as PublicClient;
     clients.set(key, c);
   }
   return c;

@@ -46,6 +46,20 @@ export const NETWORKS = {
 export type NetworkKey = keyof typeof NETWORKS;
 
 /**
+ * RPC endpoints tried in order: a dedicated one if configured (NEXT_PUBLIC_RPC_*, e.g. Alchemy), then
+ * public ones that tolerate log scans, then the chain's default. Base's own public RPC rate-limits hard.
+ * (Env vars are written out in full so Next can inline them.)
+ */
+export const RPC_URLS: Record<NetworkKey, string[]> = {
+  tempo: [process.env.NEXT_PUBLIC_RPC_TEMPO].filter((u): u is string => !!u),
+  tempoModerato: [process.env.NEXT_PUBLIC_RPC_TEMPO_MODERATO].filter((u): u is string => !!u),
+  base: [process.env.NEXT_PUBLIC_RPC_BASE, "https://base-rpc.publicnode.com"].filter((u): u is string => !!u),
+  baseSepolia: [process.env.NEXT_PUBLIC_RPC_BASE_SEPOLIA, "https://base-sepolia-rpc.publicnode.com"].filter(
+    (u): u is string => !!u,
+  ),
+};
+
+/**
  * One link serves both: testnet (free test money) and mainnet (real money). Testnet is the default so
  * nobody lands on real money by accident. The choice comes from `?network=mainnet|testnet` in the link,
  * else the visitor's last choice, and applies on page load (switching reloads the page).

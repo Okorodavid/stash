@@ -1,26 +1,17 @@
-import { createPublicClient, http, type Address, type Hex, type PublicClient } from "viem";
+import { createPublicClient, fallback, http, type Address, type Hex, type PublicClient } from "viem";
 import { stashFactoryAbi, stashVaultAbi } from "./abis";
 import { tempoModerato } from "viem/chains";
-import { HOME, NETWORKS, type NetworkKey } from "./config";
+import { HOME, NETWORKS, RPC_URLS, type NetworkKey } from "./config";
 
 export const net = NETWORKS[HOME];
-
-// Optional dedicated RPC endpoints (e.g. Alchemy, QuickNode): the public ones, Base's especially,
-// rate-limit busy apps. Without one, each chain's public RPC is used. (Written out in full so Next
-// can inline them.)
-const RPC: Record<NetworkKey, string | undefined> = {
-  tempo: process.env.NEXT_PUBLIC_RPC_TEMPO || undefined,
-  tempoModerato: process.env.NEXT_PUBLIC_RPC_TEMPO_MODERATO || undefined,
-  base: process.env.NEXT_PUBLIC_RPC_BASE || undefined,
-  baseSepolia: process.env.NEXT_PUBLIC_RPC_BASE_SEPOLIA || undefined,
-};
 
 const clients = new Map<NetworkKey, PublicClient>();
 /** One cached read client per network. */
 export function clientFor(key: NetworkKey): PublicClient {
   let c = clients.get(key);
   if (!c) {
-    c = createPublicClient({ chain: NETWORKS[key].chain, transport: http(RPC[key]) }) as PublicClient;
+    const transport = fallback([...RPC_URLS[key].map((u) => http(u)), http()]);
+    c = createPublicClient({ chain: NETWORKS[key].chain, transport }) as PublicClient;
     clients.set(key, c);
   }
   return c;

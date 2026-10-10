@@ -1,9 +1,9 @@
 // Auto-save keeper: triggers due pullAutoSave calls. Anyone may call pullAutoSave; the vault
 // enforces amount, timing and destination, so this key can never move funds anywhere else.
-import { createWalletClient, encodeFunctionData, http, type Address, type Hex } from "viem";
+import { createWalletClient, encodeFunctionData, fallback, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { stashVaultAbi } from "../src/lib/abis.ts";
-import { NETWORKS, type NetworkKey } from "../src/lib/config.ts";
+import { NETWORKS, RPC_URLS, type NetworkKey } from "../src/lib/config.ts";
 import type { NetworkState } from "./store.ts";
 import { client, type Alert } from "./watch.ts";
 
@@ -17,7 +17,7 @@ export async function runDue(key: NetworkKey, ns: NetworkState, notified: string
   const c = client(key);
   const now = BigInt(Math.floor(Date.now() / 1000));
   const alerts: Alert[] = [];
-  const wallet = createWalletClient({ account, chain: NETWORKS[key].chain, transport: http() });
+  const wallet = createWalletClient({ account, chain: NETWORKS[key].chain, transport: fallback([...RPC_URLS[key].map((u) => http(u)), http()]) });
 
   for (const plan of [...ns.autoSaves]) {
     const vault = plan.vault as Address;
