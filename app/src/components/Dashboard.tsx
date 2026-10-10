@@ -12,6 +12,7 @@ import {
 import { STASH_GUARDIAN } from "@/lib/config";
 import { useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
+import { usePreview } from "@/lib/preview";
 import RecoveryCard, { RecoverySettings } from "./Recovery";
 import MoveVaultCard from "./MoveVault";
 import AlertsButton from "./AlertsButton";
@@ -33,7 +34,10 @@ import { btn, btnGhost, btnWarn, card, input, short, timeLeft, usd, waitAdj, wai
 const dollars = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" });
 
 export default function Dashboard() {
-  const { logout } = usePrivy();
+  const { logout: signOut } = usePrivy();
+  const { preview, signUp } = usePreview();
+  // In the signed-out preview the footer link signs up instead of out.
+  const logout = preview ? signUp : signOut;
   const ctx = useVault();
   const { owner, network, configured, state, busy, error, actions } = ctx;
 
@@ -165,6 +169,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
         </div>
 
         <div hidden={tab !== "account"} className="space-y-4">
+          {!ctx.owner && <PreviewAccountCard />}
           {ctx.owner && <RecoverySettings owner={ctx.owner} />}
           <MoveVaultCard ctx={ctx} />
         </div>
@@ -660,7 +665,25 @@ function CreateVault({
   );
 }
 
+/** Account tab for signed-out visitors: what they get by signing up. */
+function PreviewAccountCard() {
+  const { signUp } = usePreview();
+  return (
+    <section className={card}>
+      <p className="font-medium">Your account</p>
+      <p className="mt-1 text-sm text-muted">
+        Sign up with email or Google. You get a dollar account on Tempo, a Save pot on Base and a Growth pot on Solana,
+        plus a recovery key only you can see, so your money is never stuck with us.
+      </p>
+      <button className={`${btn} mt-3`} onClick={signUp}>
+        Sign up
+      </button>
+    </section>
+  );
+}
+
 function Footer({ owner, onLogout, stacked }: { owner?: string; onLogout: () => void; stacked?: boolean }) {
+  const { preview } = usePreview();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     if (!owner) return;
@@ -678,15 +701,17 @@ function Footer({ owner, onLogout, stacked }: { owner?: string; onLogout: () => 
         {owner ? (copied ? "Address copied ✓" : `${short(owner)} · copy address`) : ""}
       </button>
       <button className="underline" onClick={onLogout}>
-        Sign out
+        {preview ? "Sign up · Log in" : "Sign out"}
       </button>
     </footer>
   );
 }
 
 function GuardianLink({ vault }: { vault: string }) {
+  const { preview, signUp } = usePreview();
   const [copied, setCopied] = useState(false);
   const share = async () => {
+    if (preview) return signUp();
     const url = `${window.location.origin}/guardian?vault=${vault}`;
     try {
       if (navigator.share) await navigator.share({ title: "Guard my Stash savings", url });

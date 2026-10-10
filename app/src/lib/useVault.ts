@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
 import { depositRoom, net, publicClient, readOwnerMove, readPending, readVault, vaultCall, type Call, type OwnerMove, type Pending } from "./chain";
-import { DEFAULT_POLICY, type Token } from "./config";
+import { DEFAULT_POLICY, DEMO_VAULT, STASH_GUARDIAN, type Token } from "./config";
+import { signUpInstead, usePreview } from "./preview";
 import { useSender } from "./useSender";
 
 export type { OwnerMove, Pending };
@@ -49,7 +50,27 @@ export type VaultState = {
 };
 
 /** The signed-in user's own vault: state plus owner actions. */
+/** What a signed-out visitor sees: a new, empty vault with the default rules. */
+const PREVIEW_STATE: VaultState = {
+  vault: DEMO_VAULT ?? "0x000000000000000000000000000000000000dEaD", // only used for the drain-test link
+  frozen: false,
+  unfreezeApprovedBy: null,
+  allowanceUsd: DEFAULT_POLICY.dailyLimit,
+  dailyLimitUsd: DEFAULT_POLICY.dailyLimit,
+  largeThresholdUsd: DEFAULT_POLICY.largeThreshold,
+  timelock: Number(DEFAULT_POLICY.timelock),
+  pendingPolicy: null,
+  depositRoomUsd: null,
+  ownerMove: { ownerNominee: null, guardianNominees: [], pendingOwner: null, pendingOwnerAt: 0 },
+  guardians: STASH_GUARDIAN ? [STASH_GUARDIAN] : [],
+  balances: net.tokens.map((token) => ({ token, available: 0n, total: 0n, wallet: 0n })),
+  pending: [],
+  goals: [],
+  autoSave: null,
+};
+
 export function useVault() {
+  const { preview, signUp } = usePreview();
   const sender = useSender();
   const { ready, account: owner, busy, error, setError } = sender;
   const [state, setState] = useState<VaultState | null>(null);
@@ -232,5 +253,11 @@ export function useVault() {
     cancelRules: () => send("Cancelling the rules change", [v("cancelPolicy")]),
   };
 
+  if (preview) {
+    return {
+      ready, owner: undefined, network: net, configured: Boolean(net.factory), state: PREVIEW_STATE, busy: null, error: null, refresh,
+      actions: signUpInstead(actions, signUp),
+    };
+  }
   return { ready, owner, network: net, configured: Boolean(net.factory), state, busy, error, refresh, actions };
 }

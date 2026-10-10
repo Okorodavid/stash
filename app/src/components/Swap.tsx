@@ -15,7 +15,7 @@ const fmt = (v: bigint, t: SwapToken) =>
 
 /** Swap major tokens between the user's own wallets on Tempo, Base and Solana (via Relay). */
 export default function Swap() {
-  const { ready, wallets, progress, error, result, swap, clearResult } = useSwap();
+  const { preview, ready, wallets, quoteWallets, progress, error, result, swap, clearResult } = useSwap();
   const [fromKey, setFromKey] = useState("base:USDC");
   const [toKey, setToKey] = useState("tempo:OUSD");
   const [amount, setAmount] = useState("");
@@ -60,7 +60,7 @@ export default function Swap() {
     let live = true;
     const t = setTimeout(() => {
       setQuoting(true);
-      getQuote(from, to, parsed, wallets)
+      getQuote(from, to, parsed, quoteWallets)
         .then((q) => live && (setQuote(q), setQuoteError(null)))
         .catch((e) => live && (setQuote(null), setQuoteError(e.message)))
         .finally(() => live && setQuoting(false));
@@ -70,7 +70,7 @@ export default function Swap() {
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsed, fromKey, toKey, wallets.evm, wallets.solana]);
+  }, [parsed, fromKey, toKey, quoteWallets.evm, quoteWallets.solana]);
 
   const balance = balances[fromKey];
   const tooMuch = balance !== undefined && parsed > balance;
@@ -179,7 +179,7 @@ export default function Swap() {
             refreshBalances().catch(() => {});
           }}
         >
-          {progress ? `${progress}…` : `Swap ${from.symbol} → ${to.symbol}`}
+          {progress ? `${progress}…` : preview ? `Sign up to swap ${from.symbol} → ${to.symbol}` : `Swap ${from.symbol} → ${to.symbol}`}
         </button>
 
         {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}

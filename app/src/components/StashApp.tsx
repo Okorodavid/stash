@@ -9,6 +9,7 @@ import { SOLANA_RPC } from "@/lib/growth";
 import { HOME, NETWORKS, SAVE } from "@/lib/config";
 import { CHAINS } from "@/lib/swap";
 import { resolvedTheme } from "@/lib/theme";
+import { PreviewProvider } from "@/lib/preview";
 import Intro from "./Intro";
 import Dashboard from "./Dashboard";
 import GuardianView from "./GuardianView";
@@ -67,7 +68,34 @@ function Providers({ guardianOf, swap, appId }: { guardianOf?: Address; swap?: b
 function Gate({ guardianOf, swap }: { guardianOf?: Address; swap?: boolean }) {
   const { ready, authenticated, login } = usePrivy();
   if (!ready) return <Intro loading guardian={!!guardianOf} />;
-  if (!authenticated) return <Intro onStart={login} guardian={!!guardianOf} />;
-  if (guardianOf) return <GuardianView vault={guardianOf} />;
-  return swap ? <Swap /> : <Dashboard />;
+  // Guardian links are for one specific person, so they always sign in first.
+  if (guardianOf) return authenticated ? <GuardianView vault={guardianOf} /> : <Intro onStart={login} guardian />;
+  const screen = swap ? <Swap /> : <Dashboard />;
+  if (authenticated) return screen;
+  // Signed-out visitors look around freely; any action asks them to sign up.
+  return (
+    <PreviewProvider signUp={login}>
+      <PreviewBanner onSignUp={login} />
+      {screen}
+    </PreviewProvider>
+  );
+}
+
+function PreviewBanner({ onSignUp }: { onSignUp: () => void }) {
+  return (
+    <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-semibold">Save in dollars. A stolen password can&apos;t drain it.</p>
+        <p className="text-sm text-muted">
+          You&apos;re looking around with an empty sample vault. Sign up with email or Google to start saving.
+        </p>
+      </div>
+      <button
+        className="shrink-0 rounded-xl bg-accent px-5 py-2.5 font-semibold text-accent-fg"
+        onClick={onSignUp}
+      >
+        Sign up
+      </button>
+    </section>
+  );
 }

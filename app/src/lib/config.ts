@@ -42,6 +42,9 @@ export const HOME: NetworkKey = (process.env.NEXT_PUBLIC_HOME_NETWORK as Network
 /** Network hosting the Save pot (Base). Off when its factory isn't configured. */
 export const SAVE: NetworkKey = (process.env.NEXT_PUBLIC_SAVE_NETWORK as NetworkKey) || "baseSepolia";
 
+/** Vault the public drain test (and the signed-out preview's drain link) points at. */
+export const DEMO_VAULT = env(process.env.NEXT_PUBLIC_DEMO_VAULT);
+
 /** Stash service guardian, added to every new vault by default. Its key lives only in the worker. */
 export const STASH_GUARDIAN = env(process.env.NEXT_PUBLIC_STASH_GUARDIAN);
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { getBase58Decoder } from "@solana/kit";
+import { signUpInstead, usePreview } from "./preview";
 import {
   SOLANA_CHAIN,
   TRANCHE,
@@ -35,6 +36,19 @@ const withSlippage = (x: bigint) => (x * 99n) / 100n;
 
 /** Growth pot: USDC on Solana → sHYUSD (Jupiter) → Reflect Protected tranche, and back. */
 export function useGrowthPot() {
+  const { preview, signUp } = usePreview();
+  // Signed-out preview: no wallet, but show the live rate so visitors see what Growth earns.
+  const [previewApyBps, setPreviewApyBps] = useState<number | null>(null);
+  useEffect(() => {
+    if (!preview) return;
+    let live = true;
+    trancheStats()
+      .then((s) => live && setPreviewApyBps(s.apyBps))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [preview]);
   const { wallets, ready } = useWallets();
   const { signAndSendTransaction } = useSignAndSendTransaction();
   const wallet = useMemo(() => wallets.find((w) => w.standardWallet.name === "Privy") ?? wallets[0], [wallets]);
@@ -135,5 +149,12 @@ export function useGrowthPot() {
       run("Swapping back to USDC", async () => swapBack(address!, await tokenBalance(address!, TRANCHE.baseMint))),
   };
 
-  return { ready, address, state, busy, error, refresh, actions };
+  if (preview) {
+    const previewState: GrowthState | null =
+      previewApyBps === null
+        ? null
+        : { usdc: 0n, sol: 0n, protectedTokens: 0n, strandedBase: 0n, valueUsd: 0, apyBps: previewApyBps };
+    return { ready, address: undefined, preview, state: previewState, busy: null, error: null, refresh, actions: signUpInstead(actions, signUp) };
+  }
+  return { ready, address, preview, state, busy, error, refresh, actions };
 }

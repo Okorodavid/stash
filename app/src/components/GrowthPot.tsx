@@ -55,7 +55,7 @@ export default function GrowthPotCard({
   /** Reports the pot's dollar value whenever it loads or changes (for the pots overview). */
   onValueUsd?: (usd: number) => void;
 }) {
-  const { address, state, busy, error, actions } = useGrowthPot();
+  const { address, preview, state, busy, error, actions } = useGrowthPot();
   const valueUsd = state?.valueUsd;
   useEffect(() => {
     if (valueUsd !== undefined) onValueUsd?.(valueUsd);
@@ -75,6 +75,28 @@ export default function GrowthPotCard({
       </p>
     </>
   );
+
+  if (preview) {
+    return (
+      <section className={card}>
+        {header}
+        <p className="mt-2 text-3xl font-semibold">$0.00</p>
+        <p className="text-sm text-muted">
+          {state ? `Earning about ${(state.apyBps / 100).toFixed(1)}% a year right now (rate changes).` : "Loading the current rate…"}
+        </p>
+        <div className="mt-3 flex gap-2">
+          <input className={input} inputMode="decimal" placeholder="$ amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <button className={btnGhost} onClick={() => actions.deposit(0n)}>
+            Grow
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          Growth keeps at most half your savings by default, and this pot doesn&apos;t have daily limits or guardians yet.
+        </p>
+        <PotInfo pot="growth" />
+      </section>
+    );
+  }
 
   if (!address) {
     return (

@@ -5,14 +5,22 @@ import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/sola
 import { getBase58Decoder } from "@solana/kit";
 import { SOLANA_CHAIN, confirmSignature } from "./growth";
 import { CHAINS, buildSolanaTx, getQuote, isEvmTx, waitForFill, type FillStatus, type SwapToken, type Wallets } from "./swap";
+import { usePreview } from "./preview";
 import { useSender } from "./useSender";
 
 const base58 = getBase58Decoder();
 
 export type SwapResult = { status: FillStatus; requestId?: string };
 
+// Signed-out preview quotes with burn addresses (nobody can use them); nothing is ever sent from them.
+const PREVIEW_QUOTE_WALLETS: Wallets = {
+  evm: "0x000000000000000000000000000000000000dEaD",
+  solana: "1nc1nerator11111111111111111111111111111111",
+};
+
 /** Swaps between the user's own Tempo, Base and Solana wallets through Relay. */
 export function useSwap() {
+  const { preview, signUp } = usePreview();
   const sender = useSender();
   const { wallets: solWallets } = useWallets();
   const { signAndSendTransaction } = useSignAndSendTransaction();
@@ -69,5 +77,12 @@ export function useSwap() {
 
   // The EVM sender keeps its own error (e.g. a wallet rejection); show it with ours.
   const shownError = error && sender.error ? `${error} (${sender.error})` : error;
-  return { ready: sender.ready, wallets, progress, error: shownError, result, swap, clearResult: () => setResult(null) };
+  if (preview) {
+    const askToSignUp = async (): Promise<FillStatus | undefined> => {
+      signUp();
+      return undefined;
+    };
+    return { preview, ready: true, wallets: {} as Wallets, quoteWallets: PREVIEW_QUOTE_WALLETS, progress: null, error: null, result: null, swap: askToSignUp, clearResult: () => {} };
+  }
+  return { preview, ready: sender.ready, wallets, quoteWallets: wallets, progress, error: shownError, result, swap, clearResult: () => setResult(null) };
 }

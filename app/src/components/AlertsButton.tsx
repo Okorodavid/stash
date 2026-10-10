@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
+import { usePreview } from "@/lib/preview";
 import { btnGhost } from "./ui";
 
 /** Opens the Stash Telegram bot with a one-time code tied to the signed-in user's own wallet. */
 export default function AlertsButton({ label = "Get Telegram alerts" }: { label?: string }) {
   const { getAccessToken } = usePrivy();
+  const { preview, signUp } = usePreview();
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
 
   const open = async () => {
+    if (preview) return signUp();
     setError(null);
     setOpening(true);
     // Open the tab synchronously (inside the click) so pop-up blockers allow it; fill in the URL after.

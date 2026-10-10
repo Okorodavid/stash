@@ -5,6 +5,7 @@ import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
 import { clientFor, depositRoom, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
 import { DEFAULT_POLICY, NETWORKS, SAVE } from "./config";
+import { signUpInstead, usePreview } from "./preview";
 import { useSender } from "./useSender";
 
 const erc4626Abi = [
@@ -34,7 +35,25 @@ export type SavePotState = {
 };
 
 /** The Save pot: the user's vault on Base, earning through the factory's allowlisted adapter. */
+/** Signed-out preview: no pot opened yet. */
+const PREVIEW_STATE: SavePotState = {
+  vault: null,
+  adapter: null,
+  walletUsdc: 0n,
+  walletGas: 1n, // don't show the "needs ETH for fees" warning to visitors
+  idle: 0n,
+  earning: 0n,
+  shares: 0n,
+  frozen: false,
+  allowanceUsd: 0n,
+  largeThresholdUsd: DEFAULT_POLICY.largeThreshold,
+  timelock: Number(DEFAULT_POLICY.timelock),
+  depositRoomUsd: null,
+  pending: [],
+};
+
 export function useSavePot() {
+  const { preview, signUp } = usePreview();
   const sender = useSender();
   const { account: owner, busy, error, setError } = sender;
   const [state, setState] = useState<SavePotState | null>(null);
@@ -153,5 +172,6 @@ export function useSavePot() {
     cancelWithdrawal: (id: bigint) => send("Cancelling", [v("cancelWithdrawal", [id])]),
   };
 
+  if (preview) return { enabled, network, usdc, state: PREVIEW_STATE, busy: null, error: null, actions: signUpInstead(actions, signUp) };
   return { enabled, network, usdc, state, busy, error, actions };
 }
