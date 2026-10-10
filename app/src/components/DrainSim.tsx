@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { runDrain, snapshot, type Outcome, type SimResult, type SimStep, type VaultSnapshot } from "@/lib/drainSim";
 import { net } from "@/lib/chain";
+import { DEMO_VAULT } from "@/lib/config";
 import { btn, card, short, usd } from "./ui";
 
 const LABEL: Record<Outcome, string> = {
@@ -23,8 +24,29 @@ const TONE: Record<Outcome, string> = {
 
 const STEP_MS = 650;
 
+/**
+ * Picks the vault in the browser: the one in the link, else the demo vault for the current network
+ * (testnet or mainnet is only known client-side).
+ */
+export default function DrainSim({ vault }: { vault?: Address }) {
+  const [target, setTarget] = useState<Address | null | undefined>(undefined);
+  useEffect(() => {
+    const t = setTimeout(() => setTarget(vault ?? DEMO_VAULT ?? null), 0);
+    return () => clearTimeout(t);
+  }, [vault]);
+  if (target === undefined) return <p className="text-muted">Reading the vault…</p>;
+  if (target === null) {
+    return (
+      <p className="text-muted">
+        There&apos;s no demo vault on {net.chain.name} yet. Open the drain test from your Stash dashboard to try it on your own vault.
+      </p>
+    );
+  }
+  return <DrainSimFor vault={target} />;
+}
+
 /** Thief-with-your-login simulation against a live vault. Read-only: nothing is signed or sent. */
-export default function DrainSim({ vault }: { vault: Address }) {
+function DrainSimFor({ vault }: { vault: Address }) {
   const [snap, setSnap] = useState<VaultSnapshot | null>(null);
   const [respond, setRespond] = useState(true);
   const [result, setResult] = useState<SimResult | null>(null);

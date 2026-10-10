@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
 import { CHAINS, TOKENS, balanceOf, feesUsd, findToken, getQuote, tokenKey, walletOn, type Quote, type SwapToken } from "@/lib/swap";
 import { useSwap } from "@/lib/useSwap";
+import { MODE, askForMainnet } from "@/lib/config";
 import { btn, btnGhost, card, input } from "./ui";
 
 // Left in a native-token balance so the wallet can still pay network fees after a "Max" swap.
@@ -78,7 +79,10 @@ export default function Swap() {
   const lowFees =
     feeToken !== null && balances[feeToken] !== undefined && balances[feeToken] < MIN_FEE_BALANCE[from.chain as "base" | "solana"];
   const showQuote = parsed > 0n && fromKey !== toKey;
-  const canSwap = ready && showQuote && !!quote && !quoting && !tooMuch && !progress;
+  // Swaps only exist with real tokens (Relay has no testnet for Tempo or Solana), so in Testnet mode
+  // quotes still show but the button asks to switch to Mainnet first.
+  const testnet = MODE === "testnet";
+  const canSwap = testnet || (ready && showQuote && !!quote && !quoting && !tooMuch && !progress);
 
   const pick = (setter: (k: string) => void) => (k: string) => {
     setter(k);
@@ -170,16 +174,28 @@ export default function Swap() {
           <p className="text-xs text-muted">Tempo has no gas token: the network fee (a fraction of a cent) is paid in dollars.</p>
         )}
 
+        {testnet && (
+          <p className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
+            Swaps move real tokens: there&apos;s no test version. Switch to Mainnet to swap.
+          </p>
+        )}
         <button
           className={btn}
           disabled={!canSwap}
           onClick={async () => {
+            if (testnet) return askForMainnet();
             const status = await swap(from, to, parsed);
             if (status === "success") setAmount("");
             refreshBalances().catch(() => {});
           }}
         >
-          {progress ? `${progress}…` : preview ? `Sign up to swap ${from.symbol} → ${to.symbol}` : `Swap ${from.symbol} → ${to.symbol}`}
+          {progress
+            ? `${progress}…`
+            : testnet
+              ? "Switch to mainnet to swap"
+              : preview
+                ? `Sign up to swap ${from.symbol} → ${to.symbol}`
+                : `Swap ${from.symbol} → ${to.symbol}`}
         </button>
 
         {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}

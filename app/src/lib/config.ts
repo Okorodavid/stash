@@ -37,13 +37,59 @@ export const NETWORKS = {
 
 export type NetworkKey = keyof typeof NETWORKS;
 
-export const HOME: NetworkKey = (process.env.NEXT_PUBLIC_HOME_NETWORK as NetworkKey) || "tempoModerato";
+/**
+ * One link serves both: testnet (free test money) and mainnet (real money). Testnet is the default so
+ * nobody lands on real money by accident. The choice comes from `?network=mainnet|testnet` in the link,
+ * else the visitor's last choice, and applies on page load (switching reloads the page).
+ */
+export type Mode = "testnet" | "mainnet";
+export const MODE_KEY = "stash:network";
+
+const MODES: Record<Mode, { home: NetworkKey; save: NetworkKey; demoVault: Address | undefined }> = {
+  testnet: { home: "tempoModerato", save: "baseSepolia", demoVault: env(process.env.NEXT_PUBLIC_DEMO_VAULT) },
+  mainnet: { home: "tempo", save: "base", demoVault: env(process.env.NEXT_PUBLIC_DEMO_VAULT_MAINNET) },
+};
+
+function readMode(): Mode {
+  if (typeof window === "undefined") return "testnet"; // server render and the worker
+  try {
+    const fromLink = new URLSearchParams(window.location.search).get("network");
+    if (fromLink === "mainnet" || fromLink === "testnet") {
+      localStorage.setItem(MODE_KEY, fromLink);
+      return fromLink;
+    }
+    return localStorage.getItem(MODE_KEY) === "mainnet" ? "mainnet" : "testnet";
+  } catch {
+    return "testnet";
+  }
+}
+
+export const MODE: Mode = readMode();
+
+/** Switches network and reloads, so every module picks up the new one. */
+export function switchMode(next: Mode) {
+  try {
+    localStorage.setItem(MODE_KEY, next);
+  } catch {
+    // Storage blocked: the link parameter below still carries the choice for this visit.
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("network", next);
+  window.location.href = url.toString();
+}
+
+/** Asks the header switch to move to mainnet (it shows the real-money confirmation first). */
+export const ASK_MAINNET_EVENT = "stash:ask-mainnet";
+export const askForMainnet = () => window.dispatchEvent(new Event(ASK_MAINNET_EVENT));
+
+/** Home network (Tempo): the main account. */
+export const HOME: NetworkKey = MODES[MODE].home;
 
 /** Network hosting the Save pot (Base). Off when its factory isn't configured. */
-export const SAVE: NetworkKey = (process.env.NEXT_PUBLIC_SAVE_NETWORK as NetworkKey) || "baseSepolia";
+export const SAVE: NetworkKey = MODES[MODE].save;
 
-/** Vault the public drain test (and the signed-out preview's drain link) points at. */
-export const DEMO_VAULT = env(process.env.NEXT_PUBLIC_DEMO_VAULT);
+/** Vault the public drain test (and the signed-out preview's drain link) points at, per network. */
+export const DEMO_VAULT = MODES[MODE].demoVault;
 
 /** Stash service guardian, added to every new vault by default. Its key lives only in the worker. */
 export const STASH_GUARDIAN = env(process.env.NEXT_PUBLIC_STASH_GUARDIAN);

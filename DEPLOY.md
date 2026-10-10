@@ -65,11 +65,9 @@ Same commands with `--broadcast` added. On Base, add `--verify --etherscan-api-k
 
 ## 6. App and worker
 
-In `app/.env.local` (and the hosting provider's env):
+The app serves testnet and mainnet from one link: a Testnet/Mainnet switch in the header (testnet by default; `?network=mainnet` in a link opens mainnet). Set the factories for both in `app/.env.local` (and the hosting provider's env):
 
 ```
-NEXT_PUBLIC_HOME_NETWORK=tempo
-NEXT_PUBLIC_SAVE_NETWORK=base
 NEXT_PUBLIC_FACTORY_TEMPO=<tempo factory>
 NEXT_PUBLIC_FACTORY_BASE=<base factory>
 NEXT_PUBLIC_STASH_GUARDIAN=<see below>

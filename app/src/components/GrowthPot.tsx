@@ -6,6 +6,7 @@ import { useConnectWallet, useWallets } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
 import { GROWTH_DEPOSIT_CAP_USD, TRANCHE } from "@/lib/growth";
 import { useGrowthPot } from "@/lib/useGrowthPot";
+import { MODE, askForMainnet } from "@/lib/config";
 import PotInfo from "./PotInfo";
 import { btn, btnGhost, card, input, short, usd } from "./ui";
 
@@ -57,7 +58,10 @@ export default function GrowthPotCard({
   /** Reports the pot's dollar value whenever it loads or changes (for the pots overview). */
   onValueUsd?: (usd: number) => void;
 }) {
-  const { address, preview, state, busy, error, actions } = useGrowthPot();
+  const { address, preview, liveApyBps, state, busy, error, actions } = useGrowthPot();
+  // Growth only exists with real money (Solana mainnet), so Testnet mode shows it but asks to switch.
+  const testnet = MODE === "testnet";
+  const apyBps = state?.apyBps ?? liveApyBps;
   const valueUsd = state?.valueUsd;
   useEffect(() => {
     if (valueUsd !== undefined) onValueUsd?.(valueUsd);
@@ -85,20 +89,33 @@ export default function GrowthPotCard({
     </>
   );
 
-  if (preview) {
+  if (preview || testnet) {
     return (
       <section className={card}>
         {header}
         <p className="mt-2 text-3xl font-semibold">$0.00</p>
         <p className="text-sm text-muted">
-          {state ? `Earning about ${(state.apyBps / 100).toFixed(1)}% a year right now (rate changes).` : "Loading the current rate…"}
+          {apyBps !== null && apyBps !== undefined
+            ? `Earning about ${(apyBps / 100).toFixed(1)}% a year right now (rate changes).`
+            : "Loading the current rate…"}
         </p>
-        <div className="mt-3 flex gap-2">
-          <input className={input} inputMode="decimal" placeholder="$ amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <button className={btnGhost} onClick={() => actions.deposit(0n)}>
-            Grow
-          </button>
-        </div>
+        {testnet ? (
+          <>
+            <p className="mt-3 rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
+              Growth only runs with real money on Solana: there&apos;s no test version.
+            </p>
+            <button className={`${btnGhost} mt-2 w-full`} onClick={askForMainnet}>
+              Switch to mainnet to use Growth
+            </button>
+          </>
+        ) : (
+          <div className="mt-3 flex gap-2">
+            <input className={input} inputMode="decimal" placeholder="$ amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <button className={btnGhost} onClick={() => actions.deposit(0n)}>
+              Grow
+            </button>
+          </div>
+        )}
         <p className="mt-3 text-xs text-muted">
           Growth keeps at most half your savings by default, and this pot doesn&apos;t have daily limits or guardians yet.
         </p>

@@ -9,7 +9,7 @@ import {
   parseUnits,
   type Address,
 } from "viem";
-import { STASH_GUARDIAN } from "@/lib/config";
+import { MODE, STASH_GUARDIAN } from "@/lib/config";
 import { HAS_TEST_FAUCET } from "@/lib/chain";
 import { sampleVaultState, useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
@@ -21,7 +21,7 @@ import AlertsButton from "./AlertsButton";
 import SavePotCard from "./SavePot";
 import PotInfo from "./PotInfo";
 import HoldButton from "./HoldButton";
-import { HomeIcon, HourglassIcon, JarIcon, ShieldIcon, SnowflakeIcon, UserIcon } from "./Icons";
+import { HomeIcon, HourglassIcon, JarIcon, ShieldIcon, SnowflakeIcon, SwapIcon, UserIcon } from "./Icons";
 import { useSavePot } from "@/lib/useSavePot";
 import dynamic from "next/dynamic";
 
@@ -31,6 +31,12 @@ const GrowthPotCard = dynamic(() => import("./GrowthPot"), {
   loading: () => <section className="rounded-2xl border border-line bg-card p-4 text-sm text-muted">Loading Growth pot…</section>,
 });
 import { AutoSaveCard, GoalsCard } from "./Savings";
+
+// Swap pulls in Relay and Solana code; load it only when the tab is opened.
+const SwapTab = dynamic(() => import("./Swap"), {
+  ssr: false,
+  loading: () => <section className="rounded-2xl border border-line bg-card p-4 text-sm text-muted">Loading swaps…</section>,
+});
 import { btn, btnGhost, btnWarn, card, input, short, timeLeft, usd, waitAdj, waitText, type Loaded } from "./ui";
 
 const dollars = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" });
@@ -122,10 +128,11 @@ function Status({ busy, error }: { busy?: string | null; error?: string | null }
   );
 }
 
-type Tab = "home" | "pots" | "protect" | "account";
+type Tab = "home" | "pots" | "swap" | "protect" | "account";
 const TABS: { id: Tab; label: string; Icon: typeof HomeIcon }[] = [
   { id: "home", label: "Home", Icon: HomeIcon },
   { id: "pots", label: "Pots", Icon: JarIcon },
+  { id: "swap", label: "Swap", Icon: SwapIcon },
   { id: "protect", label: "Protect", Icon: ShieldIcon },
   { id: "account", label: "Account", Icon: UserIcon },
 ];
@@ -199,11 +206,9 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
             <GrowthPotCard otherSavingsUsd={mainUsd + saveUsd} onValueUsd={setGrowthUsd} />
           </div>
           <AutoSaveCard ctx={ctx} />
-          <a href="/swap" className={`${card} block`}>
-            <p className="font-medium">Swap between chains →</p>
-            <p className="mt-1 text-sm text-muted">Move dollars, ETH, SOL or bitcoin between your Tempo, Base and Solana wallets.</p>
-          </a>
         </div>
+
+        {tab === "swap" && <SwapTab />}
 
         <div hidden={tab !== "protect"} className="space-y-4">
           <div className="lg:hidden">
@@ -238,7 +243,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
             key={id}
             onClick={() => show(id)}
             aria-current={tab === id ? "page" : undefined}
-            className={`flex min-w-20 flex-col items-center gap-0.5 px-3 pt-2.5 pb-2 text-xs font-medium ${
+            className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pt-2.5 pb-2 text-xs font-medium ${
               tab === id ? "text-accent" : "text-muted"
             }`}
           >
@@ -435,8 +440,10 @@ function ProtectSummary({ ctx }: { ctx: Loaded }) {
 }
 
 function DrainLink({ vault }: { vault: string }) {
+  // The sample vault isn't real: send visitors to the current network's demo vault instead.
+  const { preview } = usePreview();
   return (
-    <a href={`/drain?vault=${vault}`} className={`${card} block hover:border-accent`}>
+    <a href={preview ? "/drain" : `/drain?vault=${vault}`} className={`${card} block hover:border-accent`}>
       <p className="font-medium">What if someone Hacks this Wallet →</p>
       <p className="mt-1 text-sm text-muted">
         Watch a simulated thief try to drain your vault. Nothing is sent.
@@ -780,7 +787,7 @@ function GuardianLink({ vault }: { vault: string }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
     if (preview) return signUp();
-    const url = `${window.location.origin}/guardian?vault=${vault}`;
+    const url = `${window.location.origin}/guardian?vault=${vault}&network=${MODE}`;
     try {
       if (navigator.share) await navigator.share({ title: "Guard my Stash savings", url });
       else await navigator.clipboard.writeText(url);

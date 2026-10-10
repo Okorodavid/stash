@@ -77,3 +77,10 @@ export const UserIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
   </Icon>
 );
+
+export const SwapIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M4 8h14l-4-4" />
+    <path d="M20 16H6l4 4" />
+  </Icon>
+);

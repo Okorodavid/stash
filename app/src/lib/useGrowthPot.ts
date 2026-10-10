@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { getBase58Decoder } from "@solana/kit";
 import { signUpInstead, usePreview } from "./preview";
+import { MODE } from "./config";
 import {
   SOLANA_CHAIN,
   TRANCHE,
@@ -37,10 +38,10 @@ const withSlippage = (x: bigint) => (x * 99n) / 100n;
 /** Growth pot: USDC on Solana → sHYUSD (Jupiter) → Reflect Protected tranche, and back. */
 export function useGrowthPot() {
   const { preview, signUp } = usePreview();
-  // Signed-out preview: no wallet, but show the live rate so visitors see what Growth earns.
+  // Signed-out preview and Testnet mode (Growth only exists on mainnet): show the live rate anyway.
   const [previewApyBps, setPreviewApyBps] = useState<number | null>(null);
   useEffect(() => {
-    if (!preview) return;
+    if (!preview && MODE !== "testnet") return;
     let live = true;
     trancheStats()
       .then((s) => live && setPreviewApyBps(s.apyBps))
@@ -154,7 +155,7 @@ export function useGrowthPot() {
       previewApyBps === null
         ? null
         : { usdc: 0n, sol: 0n, protectedTokens: 0n, strandedBase: 0n, valueUsd: 0, apyBps: previewApyBps };
-    return { ready, address: undefined, preview, state: previewState, busy: null, error: null, refresh, actions: signUpInstead(actions, signUp) };
+    return { ready, address: undefined, preview, liveApyBps: previewApyBps, state: previewState, busy: null, error: null, refresh, actions: signUpInstead(actions, signUp) };
   }
-  return { ready, address, preview, state, busy, error, refresh, actions };
+  return { ready, address, preview, liveApyBps: previewApyBps, state, busy, error, refresh, actions };
 }

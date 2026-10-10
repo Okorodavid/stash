@@ -1,6 +1,6 @@
 // Stash worker: watches vaults on every configured network, sends Telegram alerts to owners and
 // guardians, and runs due auto-saves. Run from app/:  npm run worker
-import { HOME, NETWORKS, SAVE, type NetworkKey } from "../src/lib/config.ts";
+import { NETWORKS, type NetworkKey } from "../src/lib/config.ts";
 import { keeperAddress, runDue } from "./keeper.ts";
 import { load, save } from "./store.ts";
 import { pollOnce, send, telegramEnabled } from "./telegram.ts";
@@ -11,7 +11,9 @@ const SCAN_EVERY_MS = 10_000;
 const KEEPER_EVERY_MS = 60_000;
 
 const state = load();
-const networks = [...new Set<NetworkKey>([HOME, SAVE])].filter((k) => NETWORKS[k].factory);
+// Testnet and mainnet share one app (a switch in the header), so watch every network with a factory.
+const networks = (Object.keys(NETWORKS) as NetworkKey[]).filter((k) => NETWORKS[k].factory);
+const modeOf = (key: NetworkKey) => (NETWORKS[key].chain.testnet ? "testnet" : "mainnet");
 
 for (const key of networks) {
   if (!state.networks[key]) {
@@ -33,7 +35,7 @@ async function deliver(alerts: Alert[]) {
         const link =
           person === owner
             ? { text: "Open Stash", url: APP_URL }
-            : { text: "Open guardian page", url: `${APP_URL}/guardian?vault=${alert.vault}` };
+            : { text: "Open guardian page", url: `${APP_URL}/guardian?vault=${alert.vault}&network=${modeOf(alert.network)}` };
         try {
           await send(chatId, alert.html, link);
         } catch (e) {
