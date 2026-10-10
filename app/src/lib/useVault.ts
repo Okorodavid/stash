@@ -291,10 +291,12 @@ export function useVault() {
 
   if (preview) {
     return {
-      ready, owner: undefined, network: net, configured: Boolean(net.factory), state: sampleVaultState(), busy: null, error: null, refresh,
+      ready, owner: undefined, embedded: false, network: net, configured: Boolean(net.factory), state: sampleVaultState(), busy: null, error: null, refresh,
       actions: signUpInstead(actions, signUp),
     };
   }
   const shownBusy = busy ?? (funding ? "Getting you free test dollars" : null);
-  return { ready, owner, network: net, configured: Boolean(net.factory), state, busy: shownBusy, error, refresh, actions };
+  /** Whether the owner key is Privy's embedded wallet (email/Google login) rather than the user's own wallet app. */
+  const embedded = sender.embedded;
+  return { ready, owner, embedded, network: net, configured: Boolean(net.factory), state, busy: shownBusy, error, refresh, actions };
 }

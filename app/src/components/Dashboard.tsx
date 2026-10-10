@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { useCreateWallet, usePrivy } from "@privy-io/react-auth";
 import {
   formatUnits,
   getAddress,
@@ -16,6 +16,7 @@ import { useNow } from "@/lib/useNow";
 import { PreviewProvider, signUpInstead, usePreview } from "@/lib/preview";
 import RecoveryCard, { RecoverySettings } from "./Recovery";
 import MoveVaultCard from "./MoveVault";
+import DepositFromWallet from "./DepositFromWallet";
 import AlertsButton from "./AlertsButton";
 import SavePotCard from "./SavePot";
 import PotInfo from "./PotInfo";
@@ -41,6 +42,15 @@ export default function Dashboard() {
   const logout = preview ? signUp : signOut;
   const ctx = useVault();
   const { owner, network, configured, state } = ctx;
+
+  // Someone who signed in with a Solana-only wallet (e.g. Phantom) has no EVM wallet to own a vault,
+  // and Privy only auto-creates one for users with no wallet at all. Create an embedded one for them.
+  const { createWallet } = useCreateWallet();
+  useEffect(() => {
+    if (preview || !ctx.ready || owner) return;
+    const t = setTimeout(() => createWallet().catch(() => {}), 0);
+    return () => clearTimeout(t);
+  }, [preview, ctx.ready, owner, createWallet]);
 
   if (!configured) {
     return (
@@ -164,11 +174,13 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
         <div hidden={tab !== "home"} className="space-y-4">
           <Hero ctx={ctx} allUsd={allUsd} mainUsd={mainUsd} />
           {s.pending.length > 0 && <PendingCard ctx={ctx} />}
-          {ctx.owner && <RecoveryCard owner={ctx.owner} />}
+          {ctx.owner && ctx.embedded && <RecoveryCard owner={ctx.owner} />}
           <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
             <SendCard ctx={ctx} />
             <SaveCard ctx={ctx} />
           </div>
+          {/* People who signed in with their own wallet already save from it with the Save card. */}
+          {(!ctx.owner || ctx.embedded) && <DepositFromWallet ctx={ctx} />}
           <DrainLink vault={s.vault!} />
         </div>
 
@@ -204,7 +216,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
 
         <div hidden={tab !== "account"} className="space-y-4">
           {!ctx.owner && <PreviewAccountCard />}
-          {ctx.owner && <RecoverySettings owner={ctx.owner} />}
+          {ctx.owner && (ctx.embedded ? <RecoverySettings owner={ctx.owner} /> : <OwnKeyCard owner={ctx.owner} />)}
           <MoveVaultCard ctx={ctx} />
         </div>
 
@@ -700,6 +712,23 @@ function CreateVault({
       >
         Create vault
       </button>
+    </section>
+  );
+}
+
+/** Account tab for people who signed in with their own wallet: the key was never with Stash. */
+function OwnKeyCard({ owner }: { owner: string }) {
+  return (
+    <section className={card}>
+      <p className="font-medium">Your key</p>
+      <p className="mt-1 text-sm text-muted">
+        You signed in with your own wallet (<span className="font-mono">{short(owner)}</span>), so the key that controls
+        your vault lives in that wallet app. Stash never had it. Back it up the way your wallet app tells you (usually a
+        seed phrase), and never share it.
+      </p>
+      <p className="mt-2 text-sm text-muted">
+        If you think it leaked, use &quot;Move your vault to a new login&quot; below with one of your guardians.
+      </p>
     </section>
   );
 }

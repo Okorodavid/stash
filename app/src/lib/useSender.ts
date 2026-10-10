@@ -1,16 +1,63 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useWallets } from "@privy-io/react-auth";
-import { createWalletClient, custom, encodeFunctionData, type Address, type Hash } from "viem";
+import { usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
+import { createWalletClient, custom, encodeFunctionData, type Address, type Chain, type Hash } from "viem";
 import { clientFor, type Call, type RawTx } from "./chain";
 import { HOME, NETWORKS, type NetworkKey } from "./config";
 
-/** The signed-in user's embedded wallet, plus a safe way to send calls from it. */
-export function useSender() {
+type Provider = Awaited<ReturnType<ConnectedWallet["getEthereumProvider"]>>;
+
+/**
+ * Switches a wallet to `chain`, adding the network first if the wallet doesn't know it (most wallets
+ * don't know Tempo yet). MetaMask only accepts 18-decimal native currencies, so that's what we declare;
+ * it only affects how the wallet labels its balance.
+ */
+async function switchTo(provider: Provider, chain: Chain) {
+  const chainId = `0x${chain.id.toString(16)}`;
+  try {
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });
+  } catch (e) {
+    const err = e as { code?: number; message?: string };
+    const unknownChain = err.code === 4902 || /unrecognized|not been added|unknown chain/i.test(err.message ?? "");
+    if (!unknownChain) throw e;
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId,
+          chainName: chain.name,
+          nativeCurrency: { name: chain.nativeCurrency.name, symbol: chain.nativeCurrency.symbol, decimals: 18 },
+          rpcUrls: chain.rpcUrls.default.http,
+          blockExplorerUrls: chain.blockExplorers ? [chain.blockExplorers.default.url] : undefined,
+        },
+      ],
+    });
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });
+  }
+}
+
+/**
+ * A wallet plus a safe way to send calls from it. By default the signed-in user's own wallet: the
+ * embedded Privy wallet for email/Google logins, or the wallet they signed in with. Pass `pick` to send
+ * from another connected wallet (e.g. depositing from MetaMask into the vault).
+ */
+export function useSender(pick?: (wallets: ConnectedWallet[]) => ConnectedWallet | undefined) {
   const { wallets, ready } = useWallets();
-  const wallet = useMemo(() => wallets.find((w) => w.walletClientType === "privy") ?? wallets[0], [wallets]);
+  const { user } = usePrivy();
+  const loginWallet = user?.wallet?.address?.toLowerCase();
+  const wallet = useMemo(
+    () =>
+      pick
+        ? pick(wallets)
+        : (wallets.find((w) => w.walletClientType === "privy") ??
+          wallets.find((w) => w.address.toLowerCase() === loginWallet) ??
+          wallets[0]),
+    [wallets, pick, loginWallet],
+  );
   const account = wallet?.address as Address | undefined;
+  /** True when the key lives in Privy's embedded wallet (so Stash can show the recovery-key export). */
+  const embedded = wallet?.walletClientType === "privy";
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,8 +73,7 @@ export function useSender() {
         // Privy's switchChain can resolve before its provider reflects the new chain, so switch
         // through the provider and wait until it actually reports the target chain.
         const provider = await wallet.getEthereumProvider();
-        const target = `0x${chain.id.toString(16)}`;
-        await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: target }] });
+        await switchTo(provider, chain);
         for (let i = 0; ; i++) {
           const current = (await provider.request({ method: "eth_chainId" })) as string;
           if (parseInt(current, 16) === chain.id) break;
@@ -63,5 +109,5 @@ export function useSender() {
     [wallet, account],
   );
 
-  return { ready, account, send, busy, error, setError };
+  return { ready, account, wallet, embedded, send, busy, error, setError };
 }

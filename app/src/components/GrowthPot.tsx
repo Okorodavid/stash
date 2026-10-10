@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { parseUnits } from "viem";
+import { useConnectWallet, useWallets } from "@privy-io/react-auth";
+import { useCreateWallet } from "@privy-io/react-auth/solana";
 import { GROWTH_DEPOSIT_CAP_USD, TRANCHE } from "@/lib/growth";
 import { useGrowthPot } from "@/lib/useGrowthPot";
 import PotInfo from "./PotInfo";
@@ -63,6 +65,13 @@ export default function GrowthPotCard({
   const { limit, setLimit } = useGrowthLimit(address);
   const [amount, setAmount] = useState("");
   const [copied, setCopied] = useState(false);
+  // Email/Google users get an embedded Solana wallet automatically. People who signed in with an
+  // EVM wallet (MetaMask…) don't, so they create one or connect Phantom/Solflare here.
+  const { wallets: evmWallets } = useWallets();
+  const autoSolana = evmWallets.some((w) => w.walletClientType === "privy");
+  const { createWallet: createSolanaWallet } = useCreateWallet();
+  const { connectWallet } = useConnectWallet();
+  const [solError, setSolError] = useState<string | null>(null);
 
   const header = (
     <>
@@ -102,7 +111,25 @@ export default function GrowthPotCard({
     return (
       <section className={card}>
         {header}
-        <p className="mt-2 text-sm text-muted">Setting up your Solana wallet…</p>
+        {autoSolana ? (
+          <p className="mt-2 text-sm text-muted">Setting up your Solana wallet…</p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-muted">Growth runs on Solana. Create a Stash Solana wallet, or use one you already have.</p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                className={`${btn} sm:flex-1`}
+                onClick={() => createSolanaWallet().catch((e: Error) => setSolError(e.message))}
+              >
+                Create a Solana wallet
+              </button>
+              <button className={`${btnGhost} sm:flex-1`} onClick={() => connectWallet({ walletChainType: "solana-only" })}>
+                Connect Phantom or Solflare
+              </button>
+            </div>
+            {solError && <p className="mt-2 text-xs text-danger">{solError}</p>}
+          </>
+        )}
       </section>
     );
   }
