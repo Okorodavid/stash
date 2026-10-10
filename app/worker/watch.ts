@@ -97,6 +97,9 @@ export async function scan(key: NetworkKey, ns: NetworkState): Promise<Alert[]> 
   }
 
   const alerts: Alert[] = [];
+  // executeWithdrawal emits WithdrawalExecuted then Withdrawn in the same transaction; those were
+  // already alerted when requested, so only Withdrawn without it is an instant withdrawal.
+  const executedTxs = new Set<string>();
   const logs = ns.vaults.length ? await getLogsChunked(c, ns.vaults as Address[], from, to) : [];
   for (const log of logs) {
     const vault = (log.address as string).toLowerCase();
@@ -159,6 +162,19 @@ export async function scan(key: NetworkKey, ns: NetworkState): Promise<Alert[]> 
         break;
       case "OwnerChanged":
         push("info", `🔑 <b>Vault moved to a new owner</b> ${where}: <code>${a.newOwner}</code>. The old login no longer controls it.`);
+        break;
+      case "WithdrawalExecuted":
+        executedTxs.add(log.transactionHash as string);
+        break;
+      case "Withdrawn":
+        if (executedTxs.has(log.transactionHash as string)) break;
+        push(
+          "warn",
+          `💸 <b>Instant withdrawal</b> ${where}
+${tokenAmount(key, a.token, a.amount)} sent to <code>${a.to}</code>.
+
+If this wasn't the owner, <b>freeze the vault now</b>: a stolen key can keep taking up to the daily limit, and anything bigger waits.`,
+        );
         break;
       case "WithdrawalCancelled":
         push("info", `🛑 Withdrawal #${a.id} cancelled ${where} by <code>${short(a.by)}</code>.`);

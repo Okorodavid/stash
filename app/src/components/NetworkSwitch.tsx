@@ -34,7 +34,7 @@ export default function NetworkSwitch() {
     return () => window.removeEventListener(ASK_MAINNET_EVENT, ask);
   }, []);
 
-  if (!mode) return <span className="text-right text-xs text-muted">Beta</span>;
+  if (!mode) return <span className="text-right text-xs text-muted">Beta · unaudited</span>;
 
   const go = (next: Mode) => {
     if (next === mode) return;
@@ -77,7 +77,7 @@ export default function NetworkSwitch() {
         {pill("mainnet", "Mainnet", "bg-warn/20 text-warn")}
       </span>
       <span className="text-[10px] text-muted">
-        {mode === "mainnet" ? "Real money" : "Free test money"}
+        {mode === "mainnet" ? "Real money · unaudited" : "Free test money · unaudited"}
       </span>
       {asking && (
         <div

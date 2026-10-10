@@ -85,10 +85,6 @@ export default function DepositFromWallet({ ctx }: { ctx: Loaded }) {
   return (
     <section className={card}>
       <p className="font-medium">Save from another wallet</p>
-      <p className="mt-1 text-sm text-muted">
-        Already hold dollars in MetaMask, Rabby or Coinbase Wallet? Connect it and move them into your vault. That wallet
-        only sends; your Stash login stays in charge of the vault.
-      </p>
 
       {!ext.account || preview ? (
         <button className={`${btnGhost} mt-3 w-full`} onClick={connect}>

@@ -208,6 +208,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
             growth={growthUsd}
           />
           <GoalsCard ctx={ctx} />
+          {HOME_CHAIN === "tempo" && <TempoEarnSoon />}
           <div id="save-pot" className="scroll-mt-6">
             <SavePotCard home={ctx} pot={pot} />
           </div>
@@ -1057,6 +1058,26 @@ function HomeChainCard() {
         stays where it is, with its own money and guardians.
       </p>
       <HomeChainPicker />
+    </section>
+  );
+}
+
+/** Earning on the Tempo main account isn't wired up yet: Morpho on Tempo is still very new. */
+function TempoEarnSoon() {
+  return (
+    <section className={`${card} border-dashed`}>
+      <div className="flex items-baseline justify-between">
+        <p className="font-medium">Earn on your Tempo savings</p>
+        <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">Coming soon</span>
+      </div>
+      <p className="mt-1 text-sm text-muted">
+        Your vault already supports earning. It will plug into Morpho on Tempo once those lending markets mature.
+        Until then, your Tempo dollars aren&apos;t lent out, so a DeFi hack can&apos;t touch them.
+      </p>
+      <p className="mt-2 text-sm">Want to earn now?</p>
+      <a href="#save-pot" className={`${btnGhost} mt-2 block text-center`}>
+        Use the Save pot (Base)
+      </a>
     </section>
   );
 }
