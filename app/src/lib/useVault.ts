@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
-import { depositRoom, net, publicClient, readOwnerMove, readPending, readVault, vaultCall, type Call, type OwnerMove, type Pending } from "./chain";
+import { HAS_TEST_FAUCET, depositRoom, fundFromTestFaucet, net, publicClient, readOwnerMove, readPending, readVault, vaultCall, type Call, type OwnerMove, type Pending } from "./chain";
 import { DEFAULT_POLICY, DEMO_VAULT, STASH_GUARDIAN, type Token } from "./config";
 import { signUpInstead, usePreview } from "./preview";
 import { useSender } from "./useSender";
@@ -184,6 +184,37 @@ export function useVault() {
     };
   }, [refresh, setError]);
 
+  // Testnet: a new tester's wallet is empty, so they couldn't even pay the fee to create a vault.
+  // Fund it from Tempo's public faucet once (per wallet, per browser); a button tops up later.
+  const [funding, setFunding] = useState(false);
+  const getTestDollars = useCallback(async () => {
+    if (!owner) return;
+    setFunding(true);
+    setError(null);
+    try {
+      await fundFromTestFaucet(owner);
+      await new Promise((r) => setTimeout(r, 2500)); // let the faucet transfers land
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setFunding(false);
+    }
+  }, [owner, refresh, setError]);
+  const walletEmpty = state !== null && state.balances[0]?.wallet === 0n;
+  useEffect(() => {
+    if (!HAS_TEST_FAUCET || preview || !owner || !walletEmpty) return;
+    const key = `stash:test-faucet:${owner.toLowerCase()}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {
+      // Storage blocked: still fund this once for this visit.
+    }
+    const t = setTimeout(() => void getTestDollars(), 0);
+    return () => clearTimeout(t);
+  }, [owner, walletEmpty, preview, getTestDollars]);
+
   const send = async (label: string, calls: Call[]) => {
     const hash = await sender.send(label, calls);
     if (hash) await refresh();
@@ -250,6 +281,8 @@ export function useVault() {
     setRules: (next: { timelock: bigint; dailyLimit: bigint; largeThreshold: bigint }) =>
       send("Saving your rules", [v("proposePolicy", [next])]),
     applyRules: () => send("Applying the new rules", [v("applyPolicy")]),
+    /** Testnet only: free test pathUSD (for fees) and OUSD from Tempo's faucet. */
+    getTestDollars,
     /** Names the vault's new owner key; it queues once a guardian names the same key. */
     nominateOwner: (newOwner: Address) => send("Requesting the move", [v("nominateOwner", [newOwner])]),
     applyOwnerChange: () => send("Moving your vault", [v("applyOwnerChange")]),
@@ -262,5 +295,6 @@ export function useVault() {
       actions: signUpInstead(actions, signUp),
     };
   }
-  return { ready, owner, network: net, configured: Boolean(net.factory), state, busy, error, refresh, actions };
+  const shownBusy = busy ?? (funding ? "Getting you free test dollars" : null);
+  return { ready, owner, network: net, configured: Boolean(net.factory), state, busy: shownBusy, error, refresh, actions };
 }

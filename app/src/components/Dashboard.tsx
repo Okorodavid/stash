@@ -10,6 +10,7 @@ import {
   type Address,
 } from "viem";
 import { STASH_GUARDIAN } from "@/lib/config";
+import { HAS_TEST_FAUCET } from "@/lib/chain";
 import { sampleVaultState, useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
 import { PreviewProvider, signUpInstead, usePreview } from "@/lib/preview";
@@ -445,6 +446,11 @@ function SaveCard({ ctx }: { ctx: Loaded }) {
         Wallet balance: {usd(t.wallet, t.token.decimals)} {t.token.symbol}
         {room !== null && <> · beta limit: you can add {usd(room, 18)} more</>}
       </p>
+      {HAS_TEST_FAUCET && (
+        <button className="mb-2 text-xs underline" disabled={!!busy} onClick={() => actions.getTestDollars()}>
+          Testnet: get free test dollars
+        </button>
+      )}
       <input
         className={input}
         inputMode="decimal"

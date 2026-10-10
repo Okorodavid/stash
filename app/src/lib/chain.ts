@@ -1,5 +1,6 @@
 import { createPublicClient, http, type Address, type Hex, type PublicClient } from "viem";
 import { stashFactoryAbi, stashVaultAbi } from "./abis";
+import { tempoModerato } from "viem/chains";
 import { HOME, NETWORKS, type NetworkKey } from "./config";
 
 export const net = NETWORKS[HOME];
@@ -103,4 +104,22 @@ export async function readOwnerMove(vault: Address, guardians: Address[], key: N
   } catch {
     return null;
   }
+}
+
+/** Tempo testnet has a public faucet; nowhere else gets free money. */
+export const HAS_TEST_FAUCET = net.chain.id === tempoModerato.id;
+
+/**
+ * Tempo testnet only: the public faucet sends free test pathUSD (which pays network fees) and test
+ * OUSD to `address`. New testers otherwise can't even pay the fee to create a vault.
+ */
+export async function fundFromTestFaucet(address: Address) {
+  if (!HAS_TEST_FAUCET) throw new Error("There's no test faucet on this network.");
+  const res = await fetch(net.chain.rpcUrls.default.http[0], {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tempo_fundAddress", params: [address] }),
+  });
+  const json = (await res.json()) as { error?: { message?: string } };
+  if (!res.ok || json.error) throw new Error(json.error?.message ?? "The test faucet didn't respond. Try again in a minute.");
 }
