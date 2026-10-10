@@ -281,7 +281,7 @@ export function useVault() {
     setRules: (next: { timelock: bigint; dailyLimit: bigint; largeThreshold: bigint }) =>
       send("Saving your rules", [v("proposePolicy", [next])]),
     applyRules: () => send("Applying the new rules", [v("applyPolicy")]),
-    /** Testnet only: free test pathUSD (for fees) and OUSD from Tempo's faucet. */
+    /** Testnet only: free test pathUSD (to save, and for fees) and OUSD from Tempo's faucet. */
     getTestDollars,
     /** Names the vault's new owner key; it queues once a guardian names the same key. */
     nominateOwner: (newOwner: Address) => send("Requesting the move", [v("nominateOwner", [newOwner])]),

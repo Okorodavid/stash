@@ -72,16 +72,16 @@ import { createPublicClient, createWalletClient, custom, http, formatUnits, pars
 // Filled in after deployment. Factory addresses are public; the page derives each user's vault from them.
 const NETWORKS = {
   tempoModerato: { name: "Tempo Testnet (Moderato)", id: 42431, rpc: "https://rpc.moderato.tempo.xyz", explorer: "https://explore.testnet.tempo.xyz",
-    factory: "0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC",
-    tokens: [{ symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 }] },
+    factory: "0xAF8ea6ED26a29dBa3C950553A97478c7E5119c14",
+    tokens: [{ symbol: "pathUSD", address: "0x20c0000000000000000000000000000000000000", decimals: 6 }, { symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 }] },
   tempo: { name: "Tempo", id: 4217, rpc: "https://rpc.tempo.xyz", explorer: "https://explore.tempo.xyz",
-    factory: "0x0000000000000000000000000000000000000000",
-    tokens: [] },
+    factory: "0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC",
+    tokens: [{ symbol: "pathUSD", address: "0x20c0000000000000000000000000000000000000", decimals: 6 }, { symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 }] },
   baseSepolia: { name: "Base Sepolia", id: 84532, rpc: "https://sepolia.base.org", explorer: "https://sepolia.basescan.org",
-    factory: "0x0000000000000000000000000000000000000000",
-    tokens: [] },
+    factory: "0xAbDbd5540ed8FAD5B146cDB58530C022091FFF89",
+    tokens: [{ symbol: "USDC", address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", decimals: 6 }] },
   base: { name: "Base", id: 8453, rpc: "https://mainnet.base.org", explorer: "https://basescan.org",
-    factory: "0x0000000000000000000000000000000000000000",
+    factory: "0xEC94eD87bA381Fd209AcAA5B464d03C104c01dfC",
     tokens: [{ symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 }] },
 };
 

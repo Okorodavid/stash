@@ -18,7 +18,7 @@ const fmt = (v: bigint, t: SwapToken) =>
 export default function Swap() {
   const { preview, ready, wallets, quoteWallets, progress, error, result, swap, clearResult } = useSwap();
   const [fromKey, setFromKey] = useState("base:USDC");
-  const [toKey, setToKey] = useState("tempo:OUSD");
+  const [toKey, setToKey] = useState("tempo:pathUSD");
   const [amount, setAmount] = useState("");
   const [balances, setBalances] = useState<Record<string, bigint>>({});
   const [quote, setQuote] = useState<Quote | null>(null);

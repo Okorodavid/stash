@@ -19,7 +19,8 @@ export const POT_INFO: Record<"vault" | "save" | "growth", PotInfo> = {
             { name: "Base", role: "The blockchain the vault runs on", url: "https://base.org" },
           ]
         : [
-            { name: "Open USD (OUSD)", role: "The dollar stablecoin itself, issued by Open Standard on Tempo", url: "https://joinopenstandard.com" },
+            { name: "pathUSD", role: "Tempo's dollar stablecoin, the default for saving (it also pays network fees)", url: "https://tempo.xyz" },
+            { name: "Open USD (OUSD)", role: "Also accepted: a dollar stablecoin issued by Open Standard on Tempo", url: "https://joinopenstandard.com" },
             { name: "Tempo", role: "The blockchain the vault runs on", url: "https://tempo.xyz" },
           ]),
     ],

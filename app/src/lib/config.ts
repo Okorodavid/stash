@@ -16,12 +16,20 @@ export const NETWORKS = {
   tempoModerato: {
     chain: tempoModerato,
     factory: env(process.env.NEXT_PUBLIC_FACTORY_TEMPO_MODERATO),
-    tokens: [{ symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 }],
+    // pathUSD first: the default for saving (it also pays Tempo's fees); OUSD is accepted too.
+    tokens: [
+      { symbol: "pathUSD", address: "0x20c0000000000000000000000000000000000000", decimals: 6 },
+      { symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 },
+    ],
   },
   tempo: {
     chain: tempo,
     factory: env(process.env.NEXT_PUBLIC_FACTORY_TEMPO),
-    tokens: [{ symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 }],
+    // pathUSD first: the default for saving (it also pays Tempo's fees); OUSD is accepted too.
+    tokens: [
+      { symbol: "pathUSD", address: "0x20c0000000000000000000000000000000000000", decimals: 6 },
+      { symbol: "OUSD", address: "0x20c0000000000000000000006a37da5c996874be", decimals: 6 },
+    ],
   },
   baseSepolia: {
     chain: baseSepolia,

@@ -121,7 +121,7 @@ export const HAS_TEST_FAUCET = net.chain.id === tempoModerato.id;
 
 /**
  * Tempo testnet only: the public faucet sends free test pathUSD (which pays network fees) and test
- * OUSD to `address`. New testers otherwise can't even pay the fee to create a vault.
+ * OUSD to `address`: pathUSD is what they save by default and also pays fees.
  */
 export async function fundFromTestFaucet(address: Address) {
   if (!HAS_TEST_FAUCET) throw new Error("There's no test faucet on this network.");

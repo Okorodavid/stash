@@ -59,8 +59,19 @@ const dollars = (v: bigint, decimals: number) =>
 
 /** Reads what a thief would be up against. */
 export async function snapshot(vault: Address): Promise<VaultSnapshot> {
-  const token = net.tokens[0];
   const read = (fn: string, args: readonly unknown[] = []) => readVault(vault, fn, args);
+  // Attack the token the vault holds most of (the vault accepts several dollar tokens).
+  const held = await Promise.all(
+    net.tokens.map((t) =>
+      publicClient.readContract({
+        address: t.address,
+        abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] }],
+        functionName: "balanceOf",
+        args: [vault],
+      }),
+    ),
+  );
+  const token = net.tokens[held.indexOf(held.reduce((a, b) => (b > a ? b : a), 0n))];
   const [block, owner, policy, remaining, available, frozen, guardians, balance] = await Promise.all([
     publicClient.getBlock(),
     read("owner") as Promise<Address>,

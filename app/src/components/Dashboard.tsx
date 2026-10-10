@@ -486,6 +486,10 @@ function SaveCard({ ctx }: { ctx: Loaded }) {
   const t = ctx.state.balances[0];
   const room = ctx.state.depositRoomUsd;
   const overCap = room !== null && Number(amount || 0) > Number(formatUnits(room, 18));
+  // On Tempo, pathUSD both gets saved and pays network fees: leave a few cents in the wallet.
+  const feeToken = t.token.symbol === "pathUSD";
+  const leavesNoFees =
+    feeToken && Number(amount || 0) > 0 && Number(formatUnits(t.wallet, t.token.decimals)) - Number(amount || 0) < 0.1;
   return (
     <section className={card}>
       <p className="font-medium">Save</p>
@@ -521,6 +525,11 @@ function SaveCard({ ctx }: { ctx: Loaded }) {
           While Stash is unaudited, each vault holds at most a set amount. Thanks for testing with small sums.
         </p>
       )}
+      {leavesNoFees && (
+        <p className="mt-1 text-xs text-warn">
+          Keep about $0.10 of pathUSD in your wallet: on Tempo it also pays the small network fees.
+        </p>
+      )}
     </section>
   );
 }
@@ -529,7 +538,10 @@ function SendCard({ ctx }: { ctx: Loaded }) {
   const { state: s, busy, actions } = ctx;
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
-  const t = s.balances[0].token;
+  // pathUSD is the default; offer a token picker only when the vault holds more than one (e.g. older OUSD).
+  const held = s.balances.filter((b, i) => i === 0 || b.available > 0n);
+  const [pick, setPick] = useState(0);
+  const t = (held[pick] ?? held[0]).token;
   const amt = Number(amount || 0);
   const allowance = Number(formatUnits(s.allowanceUsd, 18));
   const large = Number(formatUnits(s.largeThresholdUsd, 18));
@@ -539,7 +551,23 @@ function SendCard({ ctx }: { ctx: Loaded }) {
   const maxInstant = Math.floor(Math.min(allowance, large - 0.01) * 100) / 100;
   return (
     <section className={card}>
-      <p className="font-medium">Send</p>
+      <div className="flex items-center justify-between">
+        <p className="font-medium">Send</p>
+        {held.length > 1 && (
+          <select
+            className="rounded-lg border border-line bg-background px-2 py-1 text-xs"
+            value={pick}
+            onChange={(e) => setPick(Number(e.target.value))}
+            aria-label="Token to send"
+          >
+            {held.map((b, i) => (
+              <option key={b.token.address} value={i}>
+                {b.token.symbol} · {usd(b.available, b.token.decimals)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
       <input
         className={`${input} mt-2 text-2xl font-semibold`}
         inputMode="decimal"
