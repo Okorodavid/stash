@@ -10,9 +10,9 @@ import {
   type Address,
 } from "viem";
 import { STASH_GUARDIAN } from "@/lib/config";
-import { useVault, type Pending } from "@/lib/useVault";
+import { sampleVaultState, useVault, type Pending } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
-import { usePreview } from "@/lib/preview";
+import { PreviewProvider, signUpInstead, usePreview } from "@/lib/preview";
 import RecoveryCard, { RecoverySettings } from "./Recovery";
 import MoveVaultCard from "./MoveVault";
 import AlertsButton from "./AlertsButton";
@@ -39,7 +39,7 @@ export default function Dashboard() {
   // In the signed-out preview the footer link signs up instead of out.
   const logout = preview ? signUp : signOut;
   const ctx = useVault();
-  const { owner, network, configured, state, busy, error, actions } = ctx;
+  const { owner, network, configured, state } = ctx;
 
   if (!configured) {
     return (
@@ -57,16 +57,49 @@ export default function Dashboard() {
   }
   if (!state) return <p className="mx-auto max-w-md text-muted">Loading your vault…</p>;
 
-  if (!state.vault) {
-    return (
-      <div className="mx-auto max-w-md space-y-4">
-        <Status busy={busy} error={error} />
-        <CreateVault onCreate={actions.createVault} disabled={!!busy} />
-        <Footer owner={owner} onLogout={logout} />
-      </div>
-    );
-  }
+  if (!state.vault) return <NoVaultYet ctx={{ ...ctx, state }} onLogout={logout} />;
   return <Vault ctx={{ ...ctx, state }} onLogout={logout} />;
+}
+
+/**
+ * Signed in, no vault yet: show the whole app with a sample vault (their real wallet balance) instead
+ * of a form. Creating the vault opens on demand: from the banner or from any action they try.
+ */
+function NoVaultYet({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
+  const [creating, setCreating] = useState(false);
+  const open = () => setCreating(true);
+  const sample: Loaded = { ...ctx, state: sampleVaultState(ctx.state), actions: signUpInstead(ctx.actions, open) };
+  return (
+    <PreviewProvider signUp={open}>
+      <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-semibold">You&apos;re signed in. Create your vault to start saving.</p>
+          <p className="text-sm text-muted">This is a sample of your vault. It takes one tap, and you pick your own waiting period.</p>
+        </div>
+        <button className="shrink-0 rounded-xl bg-accent px-5 py-2.5 font-semibold text-accent-fg" onClick={open}>
+          Create vault
+        </button>
+      </section>
+      <Vault ctx={sample} onLogout={onLogout} />
+      {creating && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Create your vault"
+          onClick={(e) => e.target === e.currentTarget && !ctx.busy && setCreating(false)}
+        >
+          <div className="max-h-[90vh] w-full max-w-md space-y-3 overflow-y-auto">
+            <Status busy={ctx.busy} error={ctx.error} />
+            <CreateVault onCreate={ctx.actions.createVault} disabled={!!ctx.busy} />
+            <button className={`${btnGhost} w-full bg-card`} disabled={!!ctx.busy} onClick={() => setCreating(false)}>
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
+    </PreviewProvider>
+  );
 }
 
 function Status({ busy, error }: { busy?: string | null; error?: string | null }) {
@@ -701,7 +734,7 @@ function Footer({ owner, onLogout, stacked }: { owner?: string; onLogout: () => 
         {owner ? (copied ? "Address copied ✓" : `${short(owner)} · copy address`) : ""}
       </button>
       <button className="underline" onClick={onLogout}>
-        {preview ? "Sign up · Log in" : "Sign out"}
+        {preview && !owner ? "Sign up · Log in" : "Sign out"}
       </button>
     </footer>
   );
