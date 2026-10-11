@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
 import { HAS_TEST_FAUCET, depositRoom, fundFromTestFaucet, net, publicClient, readOwnerMove, readPending, readVault, vaultCall, type Call, type OwnerMove, type Pending } from "./chain";
-import { DEFAULT_POLICY, DEMO_VAULT, STASH_GUARDIAN, type Token } from "./config";
+import { DEFAULT_POLICY, DEMO_VAULT, STASH_GUARDIAN, policyFor, type Token } from "./config";
 import { signUpInstead, usePreview } from "./preview";
 import { useSender } from "./useSender";
 
@@ -233,13 +233,13 @@ export function useVault() {
 
   const actions = {
     /** `timelock` = the owner's chosen waiting period in seconds (24 hours or longer). */
-    createVault: (guardians: Address[], timelock: bigint) =>
+    createVault: (guardians: Address[], timelock: bigint, dailyLimit?: bigint) =>
       send("Creating your vault", [
         {
           address: net.factory as Address,
           abi: stashFactoryAbi,
           functionName: "createVault",
-          args: [guardians, { ...DEFAULT_POLICY, timelock }],
+          args: [guardians, policyFor(timelock, dailyLimit)],
         },
       ]),
     deposit: async (token: Token, amount: bigint) => {

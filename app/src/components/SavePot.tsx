@@ -42,7 +42,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
           A second vault with the same rules and guardians, where your dollars earn interest. Wallet: {usd(state.walletUsdc, usdc.decimals)} {usdc.symbol}
         </p>
         {gasNote}
-        <button className={`${btn} mt-3`} disabled={!!busy || noGas} onClick={() => actions.createVault(home.state.guardians, BigInt(home.state.timelock))}>
+        <button className={`${btn} mt-3`} disabled={!!busy || noGas} onClick={() => actions.createVault(home.state.guardians, BigInt(home.state.timelock), home.state.dailyLimitUsd)}>
           Open Save pot
         </button>
         {busy && <p className="mt-2 text-sm">{busy}…</p>}

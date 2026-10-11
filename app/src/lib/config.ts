@@ -160,3 +160,12 @@ export const DEFAULT_POLICY = {
   dailyLimit: 100n * 10n ** 18n,
   largeThreshold: 500n * 10n ** 18n,
 } as const;
+
+/**
+ * A new vault's rules from the owner's choices. Instant sends must stay under the large threshold, so a
+ * daily limit at or above it lifts the threshold just past the limit (same rule as editing rules later).
+ */
+export function policyFor(timelock: bigint, dailyLimit: bigint = DEFAULT_POLICY.dailyLimit) {
+  const largeThreshold = dailyLimit >= DEFAULT_POLICY.largeThreshold ? dailyLimit + 10n ** 18n : DEFAULT_POLICY.largeThreshold;
+  return { timelock, dailyLimit, largeThreshold };
+}

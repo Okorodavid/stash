@@ -738,11 +738,13 @@ function CreateVault({
   onCreate,
   disabled,
 }: {
-  onCreate: (g: Address[], timelock: bigint) => Promise<unknown>;
+  onCreate: (g: Address[], timelock: bigint, dailyLimit: bigint) => Promise<unknown>;
   disabled: boolean;
 }) {
   const [guardian, setGuardian] = useState("");
   const [hours, setHours] = useState(24);
+  const [limit, setLimit] = useState("100");
+  const dailyLimit = parseLimit(limit);
   const guardians = [
     STASH_GUARDIAN,
     isAddress(guardian) ? getAddress(guardian) : undefined,
@@ -751,9 +753,10 @@ function CreateVault({
     <section className={card}>
       <p className="font-medium">Create your vault</p>
       <p className="mt-1 text-sm text-muted">
-        Send up to $100 a day instantly. Anything bigger waits, so you or your
+        Small amounts go out instantly up to your daily limit. Anything bigger waits, so you or your
         guardians can stop it. You need at least one guardian.
       </p>
+      <LimitPicker value={limit} onChange={setLimit} />
       <WaitPicker hours={hours} onChange={setHours} />
       <HomeChainPicker />
       {STASH_GUARDIAN && (
@@ -771,8 +774,8 @@ function CreateVault({
       />
       <button
         className={`${btn} mt-3`}
-        disabled={disabled || guardians.length === 0 || !validHours(hours)}
-        onClick={() => onCreate(guardians, BigInt(hours) * 3600n)}
+        disabled={disabled || guardians.length === 0 || !validHours(hours) || dailyLimit === null}
+        onClick={() => dailyLimit !== null && onCreate(guardians, BigInt(hours) * 3600n, dailyLimit)}
       >
         Create vault
       </button>
@@ -1107,5 +1110,51 @@ function TempoEarnSoon() {
         Use the Save pot (Base)
       </a>
     </section>
+  );
+}
+
+const LIMIT_PRESETS = ["50", "100", "250", "500"];
+
+/** Dollars typed by the user -> 18-decimal USD, or null if invalid (0 to MAX_DAILY_LIMIT). */
+function parseLimit(v: string): bigint | null {
+  try {
+    if (v.trim() === "") return null;
+    const n = parseUnits(v.trim(), 18);
+    return n >= 0n && n <= BigInt(MAX_DAILY_LIMIT) * 10n ** 18n ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Daily instant limit for a new vault: presets, or any amount from $0 (every send waits). */
+function LimitPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const preset = LIMIT_PRESETS.includes(value);
+  return (
+    <div className="mt-3">
+      <p className="text-sm font-medium">Daily instant limit</p>
+      <p className="text-xs text-muted">The most that can leave in a day without waiting. Lower is safer; $0 means every send waits.</p>
+      <div className="mt-2 grid grid-cols-4 gap-2">
+        {LIMIT_PRESETS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            className={`${btnGhost} ${value === v ? "border-accent bg-accent/10 text-accent" : ""}`}
+            onClick={() => onChange(v)}
+          >
+            ${v}
+          </button>
+        ))}
+      </div>
+      <input
+        className={`${input} mt-2 text-sm`}
+        inputMode="decimal"
+        placeholder="Or type an amount, e.g. 1000"
+        value={preset ? "" : value}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
+      />
+      {!preset && value !== "" && parseLimit(value) === null && (
+        <p className="mt-1 text-xs text-warn">Enter an amount from $0 to ${MAX_DAILY_LIMIT.toLocaleString()}.</p>
+      )}
+    </div>
   );
 }

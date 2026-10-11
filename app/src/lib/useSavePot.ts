@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
 import { clientFor, depositRoom, readPending, readVault, vaultCall, type Call, type Pending } from "./chain";
-import { DEFAULT_POLICY, NETWORKS, SAVE } from "./config";
+import { DEFAULT_POLICY, NETWORKS, SAVE, policyFor } from "./config";
 import { signUpInstead, usePreview } from "./preview";
 import { useSender } from "./useSender";
 
@@ -137,13 +137,13 @@ export function useSavePot() {
 
   const actions = {
     /** Same guardians and waiting period as the main vault. */
-    createVault: (guardians: Address[], timelock: bigint) =>
+    createVault: (guardians: Address[], timelock: bigint, dailyLimit?: bigint) =>
       send("Opening your Save pot", [
         {
           address: network.factory as Address,
           abi: stashFactoryAbi,
           functionName: "createVault",
-          args: [guardians, { ...DEFAULT_POLICY, timelock }],
+          args: [guardians, policyFor(timelock, dailyLimit)],
         },
       ]),
     /** Move USDC from the wallet into the pot and start earning on it, in one flow. */
