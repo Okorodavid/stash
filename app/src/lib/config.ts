@@ -1,6 +1,11 @@
 import { base, baseSepolia, tempo, tempoModerato } from "viem/chains";
 import type { Address, Chain } from "viem";
 
+// Multicall3 (same address everywhere) is deployed on Tempo, but viem's Tempo chains don't list it.
+// Listing it lets the app bundle many reads into one RPC request.
+const MULTICALL3 = { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" as Address } };
+const withMulticall = <C extends Chain>(c: C): C => ({ ...c, contracts: { ...c.contracts, ...MULTICALL3 } });
+
 export type Token = { symbol: string; address: Address; decimals: number };
 
 type Network = {
@@ -14,7 +19,7 @@ const env = (v: string | undefined) => (v && /^0x[0-9a-fA-F]{40}$/.test(v) ? (v 
 // Tempo is home; Base hosts the Save pot. Factory addresses come from the deploy script output.
 export const NETWORKS = {
   tempoModerato: {
-    chain: tempoModerato,
+    chain: withMulticall(tempoModerato),
     factory: env(process.env.NEXT_PUBLIC_FACTORY_TEMPO_MODERATO),
     // pathUSD first: the default for saving (it also pays Tempo's fees); OUSD is accepted too.
     tokens: [
@@ -23,7 +28,7 @@ export const NETWORKS = {
     ],
   },
   tempo: {
-    chain: tempo,
+    chain: withMulticall(tempo),
     factory: env(process.env.NEXT_PUBLIC_FACTORY_TEMPO),
     // pathUSD first: the default for saving (it also pays Tempo's fees); OUSD is accepted too.
     tokens: [

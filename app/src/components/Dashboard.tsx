@@ -144,6 +144,8 @@ const TABS: { id: Tab; label: string; Icon: typeof HomeIcon }[] = [
 function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
   const { state: s } = ctx;
   const [tab, setTab] = useState<Tab>("home");
+  // The Growth pot pulls in Solana and Reflect; only mount it once Pots has been opened.
+  const [potsOpened, setPotsOpened] = useState(false);
   const pot = useSavePot();
   const [growthUsd, setGrowthUsd] = useState<number | null>(null);
   const mainUsd = s.balances.reduce((sum, b) => sum + Number(formatUnits(b.total, b.token.decimals)), 0);
@@ -154,6 +156,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
   const allUsd = mainUsd + saveUsd + (growthUsd ?? 0);
   const show = (t: Tab) => {
     setTab(t);
+    if (t === "pots") setPotsOpened(true);
     window.scrollTo({ top: 0 });
   };
 
@@ -213,7 +216,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
             <SavePotCard home={ctx} pot={pot} />
           </div>
           <div id="growth-pot" className="scroll-mt-6">
-            <GrowthPotCard otherSavingsUsd={mainUsd + saveUsd} onValueUsd={setGrowthUsd} />
+            {potsOpened && <GrowthPotCard otherSavingsUsd={mainUsd + saveUsd} onValueUsd={setGrowthUsd} />}
           </div>
           <AutoSaveCard ctx={ctx} />
         </div>

@@ -11,7 +11,8 @@ export function clientFor(key: NetworkKey): PublicClient {
   let c = clients.get(key);
   if (!c) {
     const transport = fallback([...RPC_URLS[key].map((u) => http(u)), http()]);
-    c = createPublicClient({ chain: NETWORKS[key].chain, transport }) as PublicClient;
+    // Bundle reads made in the same tick into one Multicall3 request: loading a vault makes dozens.
+    c = createPublicClient({ chain: NETWORKS[key].chain, transport, batch: { multicall: { wait: 16 } } }) as PublicClient;
     clients.set(key, c);
   }
   return c;

@@ -22,7 +22,7 @@ const TONE: Record<Outcome, string> = {
   failed: "bg-danger/10 text-danger",
 };
 
-const STEP_MS = 650;
+const STEP_MS = 400;
 
 /**
  * Picks the vault in the browser: the one in the link, else the demo vault for the current network
