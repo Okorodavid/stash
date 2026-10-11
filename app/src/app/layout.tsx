@@ -40,6 +40,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBoot }} />
+        {/* Sign-in starts by calling Privy; open the connection while the app code downloads. */}
+        <link rel="preconnect" href="https://auth.privy.io" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://auth.privy.io" />
       </head>
       {/* Browser extensions (e.g. Grammarly) add attributes to <body>; ignore those hydration diffs. */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>

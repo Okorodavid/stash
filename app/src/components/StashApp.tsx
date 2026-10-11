@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { PrivyProvider, usePrivy } from "@privy-io/react-auth";
 import type { Address } from "viem";
@@ -75,10 +75,30 @@ function Providers({ guardianOf, swap, appId }: { guardianOf?: Address; swap?: b
   );
 }
 
+/** True if this browser holds a Privy sign-in; without one, nobody can turn out to be signed in. */
+function hasSavedSession() {
+  try {
+    return Object.keys(localStorage).some((k) => k.startsWith("privy:") && k.includes("token"));
+  } catch {
+    return true; // can't tell: wait for Privy as before
+  }
+}
+
 function Gate({ guardianOf, swap }: { guardianOf?: Address; swap?: boolean }) {
-  const { ready, authenticated, login } = usePrivy();
-  // While sign-in starts up: guardians keep their own screen, everyone else sees the app taking shape.
-  if (!ready) return guardianOf ? <Intro loading guardian /> : <AppSkeleton />;
+  const { ready, authenticated, login: privyLogin } = usePrivy();
+  const [maybeSignedIn] = useState(hasSavedSession);
+  // A tap on "Sign up" before Privy has started is held and opens the login once it's ready.
+  const [wantsLogin, setWantsLogin] = useState(false);
+  useEffect(() => {
+    if (ready && wantsLogin) {
+      setWantsLogin(false);
+      privyLogin();
+    }
+  }, [ready, wantsLogin, privyLogin]);
+  const login = () => (ready ? privyLogin() : setWantsLogin(true));
+  // While sign-in starts up: guardians keep their own screen; returning users see the app taking shape;
+  // first-time visitors get the preview straight away instead of waiting on Privy.
+  if (!ready && (guardianOf || maybeSignedIn)) return guardianOf ? <Intro loading guardian /> : <AppSkeleton />;
   // Guardian links are for one specific person, so they always sign in first.
   if (guardianOf) return authenticated ? <GuardianView vault={guardianOf} /> : <Intro onStart={login} guardian />;
   const screen = swap ? <Swap /> : <Dashboard />;
