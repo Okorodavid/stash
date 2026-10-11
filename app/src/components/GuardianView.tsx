@@ -258,7 +258,7 @@ function OwnerMoveSection({
             The owner asked to move this vault to <span className="font-mono">{short(move.ownerNominee)}</span>.
           </p>
           <p className="mt-1 text-xs text-muted">
-            Call the owner and check the address with them first. Someone with a stolen login could ask for this too.
+            Call the owner and check the address with them first. Someone with a stolen key could ask for this too.
           </p>
           <button
             className={`${btnGhost} mt-2`}

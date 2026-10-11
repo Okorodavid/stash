@@ -97,7 +97,7 @@ function DrainSimFor({ vault }: { vault: Address }) {
   return (
     <div className="space-y-4">
       <section className="space-y-2">
-        <h1 className="text-3xl font-semibold leading-tight">What if someone stole the login?</h1>
+        <h1 className="text-3xl font-semibold leading-tight">What if someone stole the key?</h1>
         <p className="text-muted">
           A thief has the owner key for vault <span className="font-mono">{short(vault)}</span>, holding{" "}
           <span className="font-medium text-foreground">{usd(snap.balance, d)}</span>. Watch what they can and can&apos;t

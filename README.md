@@ -12,7 +12,7 @@ See [PLAN.md](PLAN.md) for the full build plan.
 
 | Threat | What the vault does |
 |---|---|
-| Stolen login / owner key | Instant withdrawals capped by a daily allowance that refills gradually (no "midnight reset" double-dip). Anything larger waits out a waiting period the owner chooses (24 hours to 30 days). |
+| Stolen key | Instant withdrawals capped by a daily allowance that refills gradually (no "midnight reset" double-dip). Anything larger waits out a waiting period the owner chooses (24 hours to 30 days). |
 | Thief queues a big withdrawal | Any guardian (Stash, the user's second phone, a trusted person) can cancel it or freeze the vault. |
 | Thief loosens the rules | Raising limits, shortening the waiting period, removing a guardian, or adding a yield adapter is itself timelocked; guardians can cancel. |
 | Thief plants their own guardian | New guardians can cancel/freeze immediately but only help *unfreeze* after a full timelock, and an established guardian can veto them. |
