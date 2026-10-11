@@ -135,11 +135,6 @@ function DrainSimFor({ vault }: { vault: Address }) {
           {done && <Summary snap={snap} result={result} respond={respond} />}
         </>
       )}
-
-      <p className="text-xs text-muted">
-        Simulated with eth_simulateV1 on {net.chain.name} at block {snap.block.toString()}. The thief&apos;s
-        wallet ({short("0x000000000000000000000000000000000000dEaD")}) is a placeholder.
-      </p>
     </div>
   );
 }
