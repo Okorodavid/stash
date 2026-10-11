@@ -37,7 +37,7 @@ const SwapTab = dynamic(() => import("./Swap"), {
   ssr: false,
   loading: () => <section className="rounded-2xl border border-line bg-card p-4 text-sm text-muted">Loading swaps…</section>,
 });
-import { btn, btnGhost, btnWarn, card, input, short, timeLeft, usd, waitAdj, waitText, type Loaded } from "./ui";
+import { btn, btnGhost, btnWarn, card, input, short, timeLeft, usd, waitText, type Loaded } from "./ui";
 
 const dollars = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" });
 
@@ -91,7 +91,6 @@ function NoVaultYet({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
       <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-semibold">You&apos;re signed in. Create your vault to start saving.</p>
-          <p className="text-sm text-muted">This is a sample of your vault. It takes one tap, and you pick your own waiting period.</p>
         </div>
         <button className="shrink-0 rounded-xl bg-accent px-5 py-2.5 font-semibold text-accent-fg" onClick={open}>
           Create vault
@@ -195,8 +194,8 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
           {s.pending.length > 0 && <PendingCard ctx={ctx} />}
           {ctx.owner && ctx.embedded && <RecoveryCard owner={ctx.owner} />}
           <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-            <SendCard ctx={ctx} />
             <SaveCard ctx={ctx} />
+            <SendCard ctx={ctx} />
           </div>
           {/* People who signed in with their own wallet already save from it with the Save card. */}
           {(!ctx.owner || ctx.embedded) && <DepositFromWallet ctx={ctx} />}
@@ -324,16 +323,9 @@ function Hero({ ctx, allUsd, mainUsd }: { ctx: Loaded; allUsd: number; mainUsd: 
           </div>
         </div>
       </div>
-      <p className="mt-3 text-sm">
-        {s.frozen ? (
-          <span className="font-medium text-danger">Frozen by a guardian: nothing can leave.</span>
-        ) : (
-          <span className="text-muted">
-            The ring is what you can send instantly right now. It refills gradually through the day; anything bigger waits{" "}
-            {waitText(s.timelock)}.
-          </span>
-        )}
-      </p>
+      {s.frozen && (
+        <p className="mt-3 text-sm font-medium text-danger">Frozen by a guardian: nothing can leave.</p>
+      )}
       <PotInfo pot="vault" />
     </section>
   );
@@ -626,7 +618,6 @@ function SendCard({ ctx }: { ctx: Loaded }) {
           Send {dollars(maxInstant)} now instead
         </button>
       )}
-      <p className="mt-2 text-xs text-muted">Starting a {waitAdj(s.timelock)} wait sends nothing until it ends, and you can cancel any time.</p>
     </section>
   );
 }
@@ -733,6 +724,7 @@ function GuardiansCard({ ctx }: { ctx: Loaded }) {
           </button>
         </div>
       )}
+      {guardians.length < 3 && <GuardianIndependenceNote />}
     </section>
   );
 }
@@ -775,6 +767,7 @@ function CreateVault({
         value={guardian}
         onChange={(e) => setGuardian(e.target.value.trim())}
       />
+      <GuardianIndependenceNote />
       <button
         className={`${btn} mt-3`}
         disabled={disabled || guardians.length === 0 || !validHours(hours) || dailyLimit === null}
@@ -1159,5 +1152,19 @@ function LimitPicker({ value, onChange }: { value: string; onChange: (v: string)
         <p className="mt-1 text-xs text-warn">Enter an amount from $0 to ${MAX_DAILY_LIMIT.toLocaleString()}.</p>
       )}
     </div>
+  );
+}
+
+/**
+ * A guardian only helps if a thief who steals your key or seed phrase can't control it too. Nothing
+ * on-chain can tell that two addresses come from the same seed, so say it plainly where guardians are added.
+ */
+function GuardianIndependenceNote() {
+  return (
+    <p className="mt-2 rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
+      A guardian must be a different person, or a device with its own seed phrase. Another account from your own seed
+      phrase or login won&apos;t protect you: a thief with your phrase controls it too.
+      {STASH_GUARDIAN && " The Stash guardian is always independent of your key."}
+    </p>
   );
 }

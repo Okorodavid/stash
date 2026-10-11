@@ -22,7 +22,8 @@ export const metadata: Metadata = {
 };
 
 // Runs before first paint so a saved theme choice never flashes the other theme.
-const themeBoot = `try{var t=localStorage.getItem("${THEME_KEY}");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
+// Dark unless the visitor picked light with the toggle.
+const themeBoot = `try{var t=localStorage.getItem("${THEME_KEY}");document.documentElement.dataset.theme=t==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}`;
 
 export const viewport: Viewport = {
   themeColor: [
