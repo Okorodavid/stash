@@ -96,7 +96,7 @@ function PreviewBanner({ onSignUp }: { onSignUp: () => void }) {
   return (
     <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="font-semibold">Save and gain interest. A Hack can&apos;t drain you.</p>
+        <p className="font-semibold">Save and gain interest. A Stolen Key or seedphrase can&apos;t drain you.</p>
         <p className="text-sm text-muted">
           Sign up with email or Google to start saving.
         </p>
