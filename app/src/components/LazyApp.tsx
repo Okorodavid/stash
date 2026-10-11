@@ -2,11 +2,11 @@
 
 import dynamic from "next/dynamic";
 import type { Address } from "viem";
-import Intro from "./Intro";
+import AppSkeleton from "./AppSkeleton";
 
 const StashApp = dynamic(() => import("./StashApp"), {
   ssr: false,
-  loading: () => <Intro loading />,
+  loading: () => <AppSkeleton />,
 });
 
 export default function LazyApp({ guardianOf, swap }: { guardianOf?: Address; swap?: boolean }) {

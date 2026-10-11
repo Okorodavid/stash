@@ -12,6 +12,7 @@ import { CHAINS } from "@/lib/swap";
 import { resolvedTheme } from "@/lib/theme";
 import { PreviewProvider } from "@/lib/preview";
 import Intro from "./Intro";
+import AppSkeleton from "./AppSkeleton";
 import Dashboard from "./Dashboard";
 import GuardianView from "./GuardianView";
 
@@ -26,7 +27,7 @@ const chains = [
   NETWORKS[CHAINS.base.evm!].chain,
 ].filter((c, i, all) => all.findIndex((x) => x.id === c.id) === i);
 
-const Swap = dynamic(() => import("./Swap"), { ssr: false, loading: () => <Intro loading /> });
+const Swap = dynamic(() => import("./Swap"), { ssr: false, loading: () => <AppSkeleton /> });
 
 /** `guardianOf` set = guardian screen for that vault; `swap` = the swap screen; otherwise the user's own vault. */
 export default function StashApp({ guardianOf, swap }: { guardianOf?: Address; swap?: boolean }) {
@@ -76,7 +77,8 @@ function Providers({ guardianOf, swap, appId }: { guardianOf?: Address; swap?: b
 
 function Gate({ guardianOf, swap }: { guardianOf?: Address; swap?: boolean }) {
   const { ready, authenticated, login } = usePrivy();
-  if (!ready) return <Intro loading guardian={!!guardianOf} />;
+  // While sign-in starts up: guardians keep their own screen, everyone else sees the app taking shape.
+  if (!ready) return guardianOf ? <Intro loading guardian /> : <AppSkeleton />;
   // Guardian links are for one specific person, so they always sign in first.
   if (guardianOf) return authenticated ? <GuardianView vault={guardianOf} /> : <Intro onStart={login} guardian />;
   const screen = swap ? <Swap /> : <Dashboard />;
