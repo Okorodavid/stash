@@ -8,6 +8,7 @@ import { net } from "@/lib/chain";
 import { usePreview } from "@/lib/preview";
 import PotInfo from "./PotInfo";
 import { useNotify } from "@/lib/notify";
+import { pct, useEarnRate } from "@/lib/rate";
 import { btn, btnGhost, card, cardTitle, cleanAmount, input, tint, usd, type Loaded } from "./ui";
 
 /**
@@ -18,6 +19,7 @@ export default function EarnCard({ home, earn }: { home: Loaded; earn: ReturnTyp
   const { state, busy, error, actions } = earn;
   const { preview } = usePreview();
   const notify = useNotify();
+  const rate = useEarnRate();
   const [amount, setAmount] = useState("");
   if (!state) return null;
   let parsed = 0n;
@@ -36,7 +38,16 @@ export default function EarnCard({ home, earn }: { home: Loaded; earn: ReturnTyp
     <section id="earn" className={`${card} scroll-mt-6`}>
       <div className="flex items-baseline justify-between">
         <h3 className={cardTitle}>Earn on your savings</h3>
-        <span className="text-xs text-muted">{net.chain.testnet ? "Test vault" : "Morpho on Arc"}</span>
+        <span className="text-right text-xs text-muted">
+          {net.chain.testnet ? (
+            "Test vault · 0%"
+          ) : (
+            <>
+              {rate != null && <span className="block text-sm font-semibold text-accent-ink">{pct(rate)} a year</span>}
+              Morpho on Arc
+            </>
+          )}
+        </span>
       </div>
       <p className="text-3xl font-semibold">{usd(state.earning, USDC.decimals)}</p>
       <p className="text-sm text-muted">
@@ -47,7 +58,7 @@ export default function EarnCard({ home, earn }: { home: Loaded; earn: ReturnTyp
       {error && <p role="alert" className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.danger}`}>{error}</p>}
       <div className="mt-3 flex gap-2">
         <input
-          className={input}
+          className={`${input} min-w-0 flex-1`}
           inputMode="decimal"
           placeholder="$ amount"
           aria-label="Amount to start earning on, in dollars"
@@ -55,7 +66,7 @@ export default function EarnCard({ home, earn }: { home: Loaded; earn: ReturnTyp
           onChange={(e) => setAmount(cleanAmount(e.target.value))}
         />
         <button
-          className={`${btn} w-auto shrink-0`}
+          className={`${btn.replace("w-full ", "")} shrink-0 whitespace-nowrap`}
           disabled={!preview && (!!busy || parsed === 0n || parsed > state.idle || state.frozen || !state.adapter)}
           onClick={() => actions.earn(parsed).then(done(`$${amount} is now earning. It stays behind your vault's limits and guardians.`))}
         >
@@ -71,7 +82,10 @@ export default function EarnCard({ home, earn }: { home: Loaded; earn: ReturnTyp
       {net.chain.testnet && (
         <p className="mt-2 text-xs text-muted">Testnet stand-in vault (0% yield). On mainnet this is Galaxy USDC, a curated Morpho vault.</p>
       )}
-      <p className="mt-2 text-xs text-muted">Earning money stays in your vault, behind the same limits and guardians.</p>
+      <p className="mt-2 text-xs text-muted">
+        {!net.chain.testnet && rate != null && <>Currently {pct(rate)} a year after fees; the rate moves with borrowing demand. </>}
+        Earning money stays in your vault, behind the same limits and guardians.
+      </p>
       <PotInfo pot="earn" />
     </section>
   );
