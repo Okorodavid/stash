@@ -23,12 +23,28 @@ export const arc = defineChain({
   contracts: { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" } },
 });
 
+/** Arc testnet: same USDC address and decimals; free test USDC from faucet.circle.com. */
+export const arcTestnet = defineChain({
+  id: 5042002,
+  name: "Arc Testnet",
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+  rpcUrls: { default: { http: ["https://rpc.testnet.arc.io"] } },
+  blockExplorers: { default: { name: "Arc Testnet Explorer", url: "https://explorer.testnet.arc.io" } },
+  contracts: { multicall3: { address: "0xcA11bde05977b3631167028862bE2a173976CA11" } },
+  testnet: true,
+});
+
 export const USDC: Token = { symbol: "USDC", address: "0x3600000000000000000000000000000000000000", decimals: 6 };
 
 export const NETWORKS = {
   arc: {
     chain: arc,
     factory: env(process.env.NEXT_PUBLIC_FACTORY_ARC),
+    tokens: [USDC],
+  },
+  arcTestnet: {
+    chain: arcTestnet,
+    factory: env(process.env.NEXT_PUBLIC_FACTORY_ARC_TESTNET),
     tokens: [USDC],
   },
 } satisfies Record<string, Network>;
@@ -38,13 +54,50 @@ export type NetworkKey = keyof typeof NETWORKS;
 /** RPC endpoints tried in order: a dedicated one if configured (e.g. QuickNode), then the public one. */
 export const RPC_URLS: Record<NetworkKey, string[]> = {
   arc: [process.env.NEXT_PUBLIC_RPC_ARC].filter((u): u is string => !!u),
+  arcTestnet: [process.env.NEXT_PUBLIC_RPC_ARC_TESTNET].filter((u): u is string => !!u),
 };
 
-/** The only network. */
-export const HOME: NetworkKey = "arc";
+/**
+ * One link serves both: mainnet (real USDC, the default) and testnet (free test USDC). The choice comes
+ * from `?network=mainnet|testnet` in the link, else the visitor's last choice, and applies on page load
+ * (switching reloads the page).
+ */
+export type Mode = "testnet" | "mainnet";
+export const MODE_KEY = "stash-arc:network";
 
-/** Vault the public drain test (and the signed-out preview's drain link) points at. */
-export const DEMO_VAULT = env(process.env.NEXT_PUBLIC_DEMO_VAULT);
+function readMode(): Mode {
+  if (typeof window === "undefined") return "mainnet"; // server render
+  try {
+    const fromLink = new URLSearchParams(window.location.search).get("network");
+    if (fromLink === "mainnet" || fromLink === "testnet") {
+      localStorage.setItem(MODE_KEY, fromLink);
+      return fromLink;
+    }
+    return localStorage.getItem(MODE_KEY) === "testnet" ? "testnet" : "mainnet";
+  } catch {
+    return "mainnet";
+  }
+}
+
+export const MODE: Mode = readMode();
+
+/** Switches network and reloads, so every module picks up the new one. */
+export function switchMode(next: Mode) {
+  try {
+    localStorage.setItem(MODE_KEY, next);
+  } catch {
+    // Storage blocked: the link parameter below still carries the choice for this visit.
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("network", next);
+  window.location.href = url.toString();
+}
+
+/** The network in use. */
+export const HOME: NetworkKey = MODE === "testnet" ? "arcTestnet" : "arc";
+
+/** Vault the public drain test (and the signed-out preview's drain link) points at, per network. */
+export const DEMO_VAULT = env(MODE === "testnet" ? process.env.NEXT_PUBLIC_DEMO_VAULT_TESTNET : process.env.NEXT_PUBLIC_DEMO_VAULT);
 
 /** Stash service guardian, added to every new vault by default. */
 export const STASH_GUARDIAN = env(process.env.NEXT_PUBLIC_STASH_GUARDIAN);

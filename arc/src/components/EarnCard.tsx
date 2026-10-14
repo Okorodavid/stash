@@ -4,6 +4,7 @@ import { useState } from "react";
 import { parseUnits } from "viem";
 import type { useEarn } from "@/lib/useEarn";
 import { USDC } from "@/lib/config";
+import { net } from "@/lib/chain";
 import { usePreview } from "@/lib/preview";
 import PotInfo from "./PotInfo";
 import { btnGhost, card, input, usd, type Loaded } from "./ui";
@@ -32,7 +33,7 @@ export default function EarnCard({ home, earn }: { home: Loaded; earn: ReturnTyp
     <section id="earn" className={`${card} scroll-mt-6`}>
       <div className="flex items-baseline justify-between">
         <p className="font-medium">Earn on your savings</p>
-        <span className="text-xs text-muted">Morpho on Arc</span>
+        <span className="text-xs text-muted">{net.chain.testnet ? "Test vault" : "Morpho on Arc"}</span>
       </div>
       <p className="text-3xl font-semibold">{usd(state.earning, USDC.decimals)}</p>
       <p className="text-sm text-muted">
@@ -56,6 +57,9 @@ export default function EarnCard({ home, earn }: { home: Loaded; earn: ReturnTyp
         <button className={`${btnGhost} mt-2 w-full`} disabled={!!busy || state.frozen} onClick={() => actions.stopEarning().then(done)}>
           Stop earning (back to plain USDC in your vault)
         </button>
+      )}
+      {net.chain.testnet && (
+        <p className="mt-2 text-xs text-muted">Testnet stand-in vault (0% yield). On mainnet this is Galaxy USDC, a curated Morpho vault.</p>
       )}
       <p className="mt-2 text-xs text-muted">Earning money stays in your vault, behind the same limits and guardians.</p>
       <PotInfo pot="earn" />

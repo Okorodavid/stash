@@ -93,8 +93,15 @@ export default function DepositFromWallet({ ctx }: { ctx: Loaded }) {
           {overCap && <p className="mt-1 text-xs text-warn">That&apos;s over your vault&apos;s beta limit.</p>}
           {balance === 0n && (
             <p className="mt-2 text-xs text-muted">
-              This wallet has no {token.symbol} on {net.chain.name} yet. Bridge USDC to {net.chain.name} first. On {net.chain.name},
-              USDC also pays the network fee, so keep a few cents in the wallet.
+              This wallet has no {token.symbol} on {net.chain.name} yet.{" "}
+              {net.chain.testnet ? (
+                <a className="underline" href="https://faucet.circle.com" target="_blank" rel="noreferrer">
+                  Get free test USDC.
+                </a>
+              ) : (
+                <>Bridge USDC to {net.chain.name} first.</>
+              )}{" "}
+              On {net.chain.name}, USDC also pays the network fee, so keep a few cents in the wallet.
             </p>
           )}
           {ext.busy && <p className="mt-2 rounded-lg bg-accent/10 px-3 py-2 text-sm">{ext.busy}…</p>}

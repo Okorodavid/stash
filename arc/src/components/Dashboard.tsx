@@ -372,6 +372,11 @@ function SaveCard({ ctx }: { ctx: Loaded }) {
         Wallet balance: {usd(t.wallet, t.token.decimals)} {t.token.symbol}
         {room !== null && <> · beta limit: you can add {usd(room, 18)} more</>}
       </p>
+      {ctx.network.chain.testnet && (
+        <a className="mb-2 block text-xs underline" href="https://faucet.circle.com" target="_blank" rel="noreferrer">
+          Testnet: get free test USDC (pick Arc Testnet, paste your address)
+        </a>
+      )}
       <input
         className={input}
         inputMode="decimal"
