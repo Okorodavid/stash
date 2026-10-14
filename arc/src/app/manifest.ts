@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Stash",
+    name: "Stasha",
     short_name: "Stash",
     description: "USDC savings on Arc that a stolen key or seed phrase can't drain.",
     start_url: "/",

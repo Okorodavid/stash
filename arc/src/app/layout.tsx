@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Stash",
+  title: "Stasha",
   description: "USDC savings on Arc that a stolen key or seed phrase can't drain.",
   applicationName: "Stash",
   appleWebApp: { capable: true, title: "Stash", statusBarStyle: "default" },
