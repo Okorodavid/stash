@@ -10,6 +10,7 @@ import Intro from "./Intro";
 import AppSkeleton from "./AppSkeleton";
 import Dashboard from "./Dashboard";
 import GuardianView from "./GuardianView";
+import { btn } from "./ui";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 const chain = NETWORKS[HOME].chain;
@@ -63,10 +64,12 @@ function Gate({ guardianOf }: { guardianOf?: Address }) {
   // A tap on "Sign up" before Privy has started is held and opens the login once it's ready.
   const [wantsLogin, setWantsLogin] = useState(false);
   useEffect(() => {
-    if (ready && wantsLogin) {
+    if (!ready || !wantsLogin) return;
+    const t = setTimeout(() => {
       setWantsLogin(false);
       privyLogin();
-    }
+    }, 0);
+    return () => clearTimeout(t);
   }, [ready, wantsLogin, privyLogin]);
   const login = () => (ready ? privyLogin() : setWantsLogin(true));
   // While sign-in starts up: guardians keep their own screen; returning users see the app taking shape;
@@ -94,10 +97,7 @@ function PreviewBanner({ onSignUp }: { onSignUp: () => void }) {
           Sign up with email or Google to start saving.
         </p>
       </div>
-      <button
-        className="shrink-0 rounded-xl bg-accent px-5 py-2.5 font-semibold text-accent-fg"
-        onClick={onSignUp}
-      >
+      <button className={`${btn} sm:w-auto sm:shrink-0 sm:px-5`} onClick={onSignUp}>
         Sign up
       </button>
     </section>

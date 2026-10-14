@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getAddress, isAddress, type Address } from "viem";
 import { useNow } from "@/lib/useNow";
-import { btn, btnGhost, card, input, short, timeLeft, waitText, type Loaded } from "./ui";
+import { btn, btnGhost, card, cardTitle, input, short, timeLeft, tint, type Loaded, waitText } from "./ui";
 
 const same = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
@@ -17,7 +17,7 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
   const now = useNow();
   const m = s.ownerMove;
 
-  const title = <p className="font-medium">Move your vault to a new login</p>;
+  const title = <h3 className={cardTitle}>Move your vault to a new login</h3>;
 
   if (!m) {
     return (
@@ -67,20 +67,20 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
       </p>
 
       {m.ownerNominee && (
-        <p className="mt-3 rounded-lg bg-warn/10 px-3 py-2 text-sm">
+        <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${tint.warn}`}>
           You asked to move to <span className="font-mono">{short(m.ownerNominee)}</span>. Waiting for a guardian to
           confirm the same address from their guardian page.
         </p>
       )}
 
       {offers.map((g) => (
-        <div key={g.guardian} className="mt-3 rounded-lg bg-warn/10 px-3 py-2 text-sm">
+        <div key={g.guardian} className={`mt-3 rounded-lg px-3 py-2 text-sm ${tint.warn}`}>
           <p>
             Guardian <span className="font-mono">{short(g.guardian)}</span> proposed moving your vault to{" "}
             <span className="font-mono">{short(g.nominee)}</span>.
           </p>
-          <p className="mt-1 text-xs text-muted">Only agree if that is your own new login. If you don&apos;t recognise it, ignore it.</p>
-          <button className={`${btnGhost} mt-2`} disabled={!!busy} onClick={() => actions.nominateOwner(g.nominee)}>
+          <p className="mt-1 text-xs">Only agree if that is your own new login. If you don&apos;t recognise it, ignore it.</p>
+          <button className={`${btnGhost} mt-2 bg-card`} disabled={!!busy} onClick={() => actions.nominateOwner(g.nominee)}>
             That&apos;s my new login: agree
           </button>
         </div>
@@ -91,13 +91,18 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
         <li>Copy that account&apos;s address (bottom of the page) and paste it below.</li>
         <li>Call one of your guardians and ask them to confirm the same address. Don&apos;t rely on a text message alone.</li>
       </ol>
+      <label htmlFor="move-to" className="mt-3 block text-sm text-muted">
+        New login&apos;s address
+      </label>
       <input
-        className={`${input} mt-3 font-mono text-sm`}
-        placeholder="New login's address 0x…"
+        id="move-to"
+        className={`${input} mt-1 font-mono text-sm`}
+        placeholder="0x…"
+        spellCheck={false}
         value={to}
         onChange={(e) => setTo(e.target.value.trim())}
       />
-      {to && !valid && <p className="mt-1 text-xs text-warn">Enter a different 0x address from this login.</p>}
+      {to && !valid && <p className="mt-1 text-xs text-warn-ink">Enter a different 0x address from this login.</p>}
       <button
         className={`${btnGhost} mt-2 w-full`}
         disabled={!!busy || !valid}

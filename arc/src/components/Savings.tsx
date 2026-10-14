@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { parseUnits } from "viem";
 import type { Goal } from "@/lib/useVault";
 import { useNow } from "@/lib/useNow";
-import { btn, btnGhost, card, input, usd, type Loaded } from "./ui";
+import { useNotify } from "@/lib/notify";
+import { btn, btnDanger, btnGhost, card, cardTitle, cleanAmount, input, tint, usd, type Loaded } from "./ui";
 
 // Goal names are kept in the browser (not on-chain) to avoid paying for extra on-chain storage.
 const nameKey = (vault: string, id: number) => `stash:goal:${vault.toLowerCase()}:${id}`;
@@ -35,12 +36,14 @@ export function GoalsCard({ ctx }: { ctx: Loaded }) {
   const [date, setDate] = useState("");
   const [feeBps, setFeeBps] = useState(500);
   const now = useNow();
+  const notify = useNotify();
 
   const create = async () => {
     const unlockAt = Math.floor(new Date(`${date}T00:00:00`).getTime() / 1000);
     const nextId = Math.max(0, ...state.goals.map((g) => g.id)) + 1;
     saveGoalName(vault, nextId, name.trim() || `Goal #${nextId}`);
-    await actions.createGoal(token, unlockAt, feeBps);
+    const hash = await actions.createGoal(token, unlockAt, feeBps);
+    if (hash) notify(`Goal "${name.trim() || `Goal #${nextId}`}" created. Lock money in it whenever you like.`);
     setCreating(false);
     setName("");
     setDate("");
@@ -49,7 +52,7 @@ export function GoalsCard({ ctx }: { ctx: Loaded }) {
   return (
     <section className={card}>
       <div className="flex items-center justify-between">
-        <p className="font-medium">Savings goals</p>
+        <h3 className={cardTitle}>Savings goals</h3>
         {!creating && (
           <button className={btnGhost} onClick={() => setCreating(true)}>
             New goal
@@ -58,7 +61,9 @@ export function GoalsCard({ ctx }: { ctx: Loaded }) {
       </div>
       <p className="mb-2 text-sm text-muted">Lock money until a date. Unlocking early costs a small fee.</p>
 
-      {state.goals.length === 0 && !creating && <p className="text-sm text-muted">No goals yet.</p>}
+      {state.goals.length === 0 && !creating && (
+        <p className="text-sm">Saving for rent, school fees or a trip? Make it a goal and the money stays put until the date you pick.</p>
+      )}
       <ul className="space-y-3">
         {state.goals.map((g) => (
           <GoalRow key={g.id} goal={g} ctx={ctx} />
@@ -67,7 +72,10 @@ export function GoalsCard({ ctx }: { ctx: Loaded }) {
 
       {creating && (
         <div className="mt-3 space-y-2">
-          <input className={input} placeholder="Name, e.g. Rent" value={name} onChange={(e) => setName(e.target.value)} />
+          <label className="block text-sm text-muted">
+            What it&apos;s for
+            <input className={`${input} mt-1`} placeholder="Rent" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
           <label className="block text-sm text-muted">
             Unlock date
             <input
@@ -105,6 +113,11 @@ function GoalRow({ goal, ctx }: { goal: Goal; ctx: Loaded }) {
   const { state, busy, actions } = ctx;
   const token = state.balances.find((b) => b.token.address.toLowerCase() === goal.token.toLowerCase())?.token ?? state.balances[0].token;
   const [amount, setAmount] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const id = useId();
+  const notify = useNotify();
+  const unlock = () =>
+    actions.releaseGoal(goal.id).then((h) => h && notify(`${goalName(state.vault!, goal.id)} unlocked. The money is back in your vault.`));
   const now = useNow();
   const matured = now > 0 && now >= goal.unlockAt;
   const fee = (goal.locked * BigInt(goal.breakFeeBps)) / 10_000n;
@@ -120,27 +133,54 @@ function GoalRow({ goal, ctx }: { goal: Goal; ctx: Loaded }) {
         {!matured && goal.breakFeeBps > 0 && ` · ${goal.breakFeeBps / 100}% early fee`}
       </p>
       <div className="mt-2 flex gap-2">
-        <input className={`${input} py-2`} inputMode="decimal" placeholder="Add $" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <label htmlFor={id} className="sr-only">
+          Amount to lock in {goalName(state.vault!, goal.id)}
+        </label>
+        <input id={id} className={`${input} py-2`} inputMode="decimal" placeholder="Add $" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
         <button
           className={btnGhost}
           disabled={!!busy || !amount}
-          onClick={() => actions.fundGoal(goal.id, parseUnits(amount, token.decimals)).then(() => setAmount(""))}
+          onClick={() =>
+            actions.fundGoal(goal.id, parseUnits(amount, token.decimals)).then((h) => {
+              if (!h) return;
+              notify(`Locked $${amount} in ${goalName(state.vault!, goal.id)}.`);
+              setAmount("");
+            })
+          }
         >
           Lock
         </button>
         {goal.locked > 0n && (
           <button
-            className={`${btnGhost} ${matured ? "" : "text-warn"}`}
+            className={`${btnGhost} ${matured ? "" : "text-warn-ink"}`}
             disabled={!!busy || state.frozen}
-            onClick={() => {
-              if (!matured && fee > 0n && !confirm(`Unlocking early costs ${usd(fee, token.decimals)}. Continue?`)) return;
-              actions.releaseGoal(goal.id);
-            }}
+            onClick={() => (!matured && fee > 0n ? setConfirming(true) : unlock())}
           >
             Unlock
           </button>
         )}
       </div>
+      {/* In-page confirm: browser pop-ups are blocked in many in-app browsers. */}
+      {confirming && (
+        <div className={`mt-2 rounded-lg p-3 ${tint.warn}`} role="group" aria-label="Confirm early unlock">
+          <p>Unlocking early costs {usd(fee, token.decimals)}. The rest goes back to your vault.</p>
+          <div className="mt-2 flex gap-2">
+            <button
+              className={btnDanger}
+              disabled={!!busy}
+              onClick={() => {
+                setConfirming(false);
+                unlock();
+              }}
+            >
+              Unlock and pay {usd(fee, token.decimals)}
+            </button>
+            <button className={`${btnGhost} shrink-0 bg-card`} onClick={() => setConfirming(false)}>
+              Keep it locked
+            </button>
+          </div>
+        </div>
+      )}
     </li>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { THEME_KEY } from "@/lib/themeKey";
+import { THEME_COLOR, THEME_KEY } from "@/lib/themeKey";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,14 +22,11 @@ export const metadata: Metadata = {
 };
 
 // Runs before first paint so a saved theme choice never flashes the other theme.
-// Dark unless the visitor picked light with the toggle.
-const themeBoot = `try{var t=localStorage.getItem("${THEME_KEY}");document.documentElement.dataset.theme=t==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}`;
+// Dark unless the visitor picked light with the toggle. The browser bar color follows the same choice.
+const themeBoot = `(function(){var t="dark";try{if(localStorage.getItem("${THEME_KEY}")==="light")t="light"}catch(e){}document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?"${THEME_COLOR.light}":"${THEME_COLOR.dark}"})()`;
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0f0e" },
-  ],
+  themeColor: THEME_COLOR.dark,
   width: "device-width",
   initialScale: 1,
 };

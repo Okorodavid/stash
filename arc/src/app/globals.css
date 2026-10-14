@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
+/* `dark:` utilities follow the app's own theme choice, not the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* Light: warm stone. Dark: "midnight vault", a teal-tinted near-black. Same meaning in both:
-   accent = safe, warn = waiting, danger = frozen/cancel, growth = Growth pot. */
+   accent = safe, warn = waiting, danger = frozen/cancel, growth = Growth pot.
+   *-ink tokens are for text sitting on a pale tint of the same hue (bg-warn/10 etc.), where the
+   plain hue is too light to read. line-strong outlines controls (inputs, ghost buttons). */
 :root {
   color-scheme: light;
   --background: #fafaf9;
@@ -9,14 +14,46 @@
   --card: #ffffff;
   --panel: #f5f5f4;
   --line: #e7e5e4;
+  --line-strong: #78716c;
   --muted: #57534e;
   --accent: #0f766e;
+  --accent-ink: #085041;
   --accent-strong: #085041;
   --accent-fg: #ffffff;
+  --save: #0e7490;
   --danger: #b91c1c;
+  --danger-ink: #991b1b;
+  --danger-fg: #ffffff;
   --warn: #b45309;
+  --warn-ink: #92400e;
   --warn-fg: #ffffff;
   --growth: #534ab7;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2357534e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+}
+
+/* Dark is the default (the boot script in layout.tsx sets data-theme before first paint). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0a0f0e;
+  --foreground: #f1f5f4;
+  --card: #101817;
+  --panel: #17211f;
+  --line: #24302d;
+  --line-strong: #5f716c;
+  --muted: #8a9894;
+  --accent: #2dd4bf;
+  --accent-ink: #5eead4;
+  --accent-strong: #14b8a6;
+  --accent-fg: #042f2e;
+  --save: #67e8f9;
+  --danger: #f87171;
+  --danger-ink: #fca5a5;
+  --danger-fg: #450a0a;
+  --warn: #fbbf24;
+  --warn-ink: #fcd34d;
+  --warn-fg: #422006;
+  --growth: #a39cf0;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238a9894' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
 }
 
 @theme inline {
@@ -25,63 +62,53 @@
   --color-card: var(--card);
   --color-panel: var(--panel);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
   --color-accent-strong: var(--accent-strong);
   --color-accent-fg: var(--accent-fg);
+  --color-save: var(--save);
   --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-fg: var(--danger-fg);
   --color-warn: var(--warn);
+  --color-warn-ink: var(--warn-ink);
   --color-warn-fg: var(--warn-fg);
   --color-growth: var(--growth);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* Dark follows the device unless the user picked a theme (data-theme on <html>, set before paint). */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --background: #0a0f0e;
-    --foreground: #f1f5f4;
-    --card: #101817;
-    --panel: #17211f;
-    --line: #24302d;
-    --muted: #8a9894;
-    --accent: #2dd4bf;
-    --accent-strong: #14b8a6;
-    --accent-fg: #042f2e;
-    --danger: #f87171;
-    --warn: #fbbf24;
-    --warn-fg: #422006;
-    --growth: #a39cf0;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --background: #0a0f0e;
-  --foreground: #f1f5f4;
-  --card: #101817;
-  --panel: #17211f;
-  --line: #24302d;
-  --muted: #8a9894;
-  --accent: #2dd4bf;
-  --accent-strong: #14b8a6;
-  --accent-fg: #042f2e;
-  --danger: #f87171;
-  --warn: #fbbf24;
-  --warn-fg: #422006;
-  --growth: #a39cf0;
-}
-
-/* Native select arrows sit against the edge; draw our own chevron with breathing room. */
 @layer base {
+  /* Native select arrows sit against the edge; draw our own chevron with breathing room. */
   select {
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+    background-image: var(--chevron);
     background-repeat: no-repeat;
     background-position: right 0.875rem center;
     background-size: 1rem;
     padding-right: 2.5rem !important;
+  }
+
+  /* One visible focus ring for every control, keyboard only. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: var(--foreground);
+  }
+
+  input,
+  textarea {
+    caret-color: var(--accent);
+  }
+
+  dialog::backdrop {
+    background: rgb(0 0 0 / 0.6);
   }
 }
 
@@ -89,6 +116,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  /* Money and countdowns: digits keep their width so values don't jitter as they change. */
+  font-variant-numeric: tabular-nums;
+  scrollbar-color: var(--line-strong) transparent;
 }
 
 /* Drain simulation: each step slides in as it is revealed. */
@@ -96,5 +126,28 @@ body {
   from {
     opacity: 0;
     transform: translateY(6px);
+  }
+}
+
+/* Sand settling into the bottom of the hourglass on a pending withdrawal. */
+@keyframes grain-fall {
+  from {
+    transform: translateY(-3px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(9px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-iteration-count: 1 !important;
   }
 }

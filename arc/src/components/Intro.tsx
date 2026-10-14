@@ -1,3 +1,5 @@
+import { btn } from "./ui";
+
 export default function Intro({
   loading,
   onStart,
@@ -32,12 +34,12 @@ export default function Intro({
       <button
         onClick={onStart}
         disabled={loading}
-        className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-accent-fg disabled:opacity-60"
+        className={btn}
       >
         {loading ? "Loading…" : guardian ? "Sign in as guardian" : "Get started"}
       </button>
       {!guardian && process.env.NEXT_PUBLIC_DEMO_VAULT && (
-        <a href="/drain" className="block text-center text-sm text-muted underline">
+        <a href="/drain" className="flex min-h-11 items-center justify-center text-sm text-muted underline underline-offset-2 hover:text-foreground">
           Watch a thief try to drain a vault
         </a>
       )}

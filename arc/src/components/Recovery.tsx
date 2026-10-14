@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useExportWallet, usePrivy, useUser } from "@privy-io/react-auth";
-import { btn, btnGhost, card } from "./ui";
+import { btn, btnGhost, card, cardTitle } from "./ui";
 
 // Where the stand-alone exit page is hosted (independent of the Stash app and servers).
 const EXIT_URL = process.env.NEXT_PUBLIC_EXIT_URL;
@@ -74,7 +74,7 @@ export default function RecoveryCard({ owner }: { owner: string }) {
 
   return (
     <section className={`${card} border-warn`}>
-      <p className="font-medium">Back up your recovery key</p>
+      <h3 className={cardTitle}>Back up your recovery key</h3>
       <p className="mt-1 text-sm text-muted">
         Your vault is yours, not ours. If Stash ever shuts down, this key plus our open-source exit page lets you withdraw
         everything without us.
@@ -88,7 +88,7 @@ export default function RecoveryCard({ owner }: { owner: string }) {
       <p className="mt-2 text-xs text-muted">
         Even with this key, a thief still faces your daily limit, the waiting period, and your guardians. But keep it safe.
       </p>
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-danger-ink">{error}</p>}
       <button
         className={`${btn} mt-3`}
         onClick={() => {
@@ -111,7 +111,7 @@ export function RecoverySettings({ owner }: { owner: string }) {
   const [open, setOpen] = useState(false);
   return (
     <section className={card}>
-      <p className="font-medium">Recovery key</p>
+      <h3 className={cardTitle}>Recovery key</h3>
       <p className="mt-1 text-sm text-muted">
         {saved
           ? "Backed up. Only view it again if you need to move it somewhere safe or use the exit page."
@@ -140,7 +140,7 @@ export function RecoverySettings({ owner }: { owner: string }) {
           View recovery key
         </button>
       )}
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-danger-ink">{error}</p>}
       {EXIT_URL && (
         <p className="mt-3 text-sm">
           <a className="underline" href={EXIT_URL} target="_blank" rel="noreferrer">

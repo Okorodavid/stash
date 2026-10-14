@@ -15,11 +15,11 @@ const LABEL: Record<Outcome, string> = {
   failed: "Failed",
 };
 const TONE: Record<Outcome, string> = {
-  blocked: "bg-accent/10 text-accent",
-  stopped: "bg-accent/10 text-accent",
-  waiting: "bg-warn/10 text-warn",
-  lost: "bg-danger/10 text-danger",
-  failed: "bg-danger/10 text-danger",
+  blocked: "bg-accent/10 text-accent-ink",
+  stopped: "bg-accent/10 text-accent-ink",
+  waiting: "bg-warn/10 text-warn-ink",
+  lost: "bg-danger/10 text-danger-ink",
+  failed: "bg-danger/10 text-danger-ink",
 };
 
 const STEP_MS = 400;
@@ -87,7 +87,7 @@ function DrainSimFor({ vault }: { vault: Address }) {
     }
   };
 
-  if (error && !snap) return <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>;
+  if (error && !snap) return <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger-ink">{error}</p>;
   if (!snap) return <p className="text-muted">Reading the vault…</p>;
 
   const d = snap.token.decimals;
@@ -105,7 +105,7 @@ function DrainSimFor({ vault }: { vault: Address }) {
       </section>
 
       {snap.balance === 0n && (
-        <p className="rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn">
+        <p className="rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn-ink">
           This vault is empty, so there&apos;s nothing to steal. Save a few dollars first to see the full attack.
         </p>
       )}
@@ -126,7 +126,7 @@ function DrainSimFor({ vault }: { vault: Address }) {
         </button>
       </div>
 
-      {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+      {error && <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger-ink">{error}</p>}
 
       {result && (
         <>

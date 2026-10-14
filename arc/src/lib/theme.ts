@@ -1,32 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { THEME_KEY } from "./themeKey";
+import { THEME_COLOR, THEME_KEY } from "./themeKey";
 
 type Theme = "light" | "dark";
 
+/** The theme in use: set on <html> by the boot script in layout.tsx (dark unless the visitor chose light). */
 export function resolvedTheme(): Theme {
-  const set = document.documentElement.dataset.theme;
-  if (set === "light" || set === "dark") return set;
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
 }
 
 /** Current theme (null until mounted) and a toggle that remembers the choice in this browser. */
 export function useTheme() {
   const [theme, setTheme] = useState<Theme | null>(null);
   useEffect(() => {
-    const sync = () => setTheme(resolvedTheme());
-    const first = setTimeout(sync, 0);
-    const mq = matchMedia("(prefers-color-scheme: dark)");
-    mq.addEventListener("change", sync);
-    return () => {
-      clearTimeout(first);
-      mq.removeEventListener("change", sync);
-    };
+    const first = setTimeout(() => setTheme(resolvedTheme()), 0);
+    return () => clearTimeout(first);
   }, []);
   const toggle = () => {
     const next: Theme = resolvedTheme() === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[next]);
     try {
       localStorage.setItem(THEME_KEY, next);
     } catch {
