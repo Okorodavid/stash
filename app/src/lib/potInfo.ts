@@ -22,11 +22,21 @@ export const POT_INFO: Record<"vault" | "save" | "growth", PotInfo> = {
             { name: "pathUSD", role: "Tempo's dollar stablecoin, the default for saving (it also pays network fees)", url: "https://tempo.xyz" },
             { name: "Open USD (OUSD)", role: "Also accepted: a dollar stablecoin issued by Open Standard on Tempo", url: "https://joinopenstandard.com" },
             { name: "Tempo", role: "The blockchain the vault runs on", url: "https://tempo.xyz" },
+            {
+              name: "Morpho (Sentora pathUSD vault)",
+              role: "Lends the pathUSD you choose to put to work, to earn interest",
+              url: "https://app.morpho.org/tempo/vault/0x9a044AE05E5e6290DcF56afd69548565e957a626",
+            },
           ]),
     ],
-    notes: [
-      "No yield protocol: this money isn't lent out, so a DeFi hack elsewhere can't touch it.",
-    ],
+    notes:
+      HOME_CHAIN === "base"
+        ? ["No yield protocol: this money isn't lent out, so a DeFi hack elsewhere can't touch it."]
+        : [
+            "Only the money you choose to put to work is lent out through Morpho. The rest isn't lent out at all.",
+            "Your vault protects against thieves, not against the lending protocol itself failing.",
+            "Earning on Tempo runs on mainnet only: Tempo's testnet has no Morpho vaults.",
+          ],
   },
   save: {
     dependsOn: [

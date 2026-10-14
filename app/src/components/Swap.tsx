@@ -5,7 +5,8 @@ import { formatUnits, parseUnits } from "viem";
 import { CHAINS, TOKENS, balanceOf, feesUsd, findToken, getQuote, tokenKey, walletOn, type Quote, type SwapToken } from "@/lib/swap";
 import { useSwap } from "@/lib/useSwap";
 import { MODE, askForMainnet } from "@/lib/config";
-import { btn, btnGhost, card, input } from "./ui";
+import { SwapIcon } from "./Icons";
+import { btn, btnGhost, card, cardTitle, cleanAmount, input, textLink, tint } from "./ui";
 
 // Left in a native-token balance so the wallet can still pay network fees after a "Max" swap.
 const FEE_RESERVE: Record<string, bigint> = { "base:ETH": 300_000_000_000_000n, "solana:SOL": 5_000_000n };
@@ -14,8 +15,11 @@ const MIN_FEE_BALANCE = { base: 30_000_000_000_000n, solana: 3_000_000n }; // ~$
 const fmt = (v: bigint, t: SwapToken) =>
   Number(formatUnits(v, t.decimals)).toLocaleString(undefined, { maximumFractionDigits: t.decimals > 6 ? 6 : 2 });
 
-/** Swap major tokens between the user's own wallets on Tempo, Base and Solana (via Relay). */
-export default function Swap() {
+/**
+ * Swap major tokens between the user's own wallets on Tempo, Base and Solana (via Relay). Full page at
+ * /swap; `embedded` renders it as a section of the Account tab.
+ */
+export default function Swap({ embedded }: { embedded?: boolean }) {
   const { preview, ready, wallets, quoteWallets, progress, error, result, swap, clearResult } = useSwap();
   const [fromKey, setFromKey] = useState("base:USDC");
   const [toKey, setToKey] = useState("tempo:pathUSD");
@@ -105,8 +109,12 @@ export default function Swap() {
   return (
     <div className="space-y-4">
       <section className="space-y-2">
-        <h1 className="text-3xl font-semibold leading-tight">Swap between chains</h1>
-        <p className="text-muted">
+        {embedded ? (
+          <h3 className={cardTitle}>Swap between chains</h3>
+        ) : (
+          <h1 className="text-3xl font-semibold leading-tight">Swap between chains</h1>
+        )}
+        <p className="text-sm text-muted">
           Move dollars, ETH, SOL or bitcoin between your own wallets on Tempo, Base and Solana. Routed by Relay; usually
           done in seconds.
         </p>
@@ -124,17 +132,18 @@ export default function Swap() {
             className={input}
             inputMode="decimal"
             placeholder="Amount"
+            aria-label={`Amount of ${from.symbol} to swap`}
             value={amount}
             onChange={(e) => {
-              setAmount(e.target.value.replace(",", "."));
+              setAmount(cleanAmount(e.target.value));
               clearResult();
             }}
           />
         </TokenRow>
 
         <div className="flex justify-center">
-          <button className={btnGhost} onClick={flip} aria-label="Swap direction">
-            ↑↓
+          <button className={`${btnGhost} grid w-11 place-items-center`} onClick={flip} aria-label="Swap direction">
+            <SwapIcon width={18} height={18} className="rotate-90" />
           </button>
         </div>
 
@@ -144,7 +153,7 @@ export default function Swap() {
           onToken={pick(setToKey)}
           balance={balances[toKey] !== undefined ? `${fmt(balances[toKey], to)} ${to.symbol}` : undefined}
         >
-          <p className="rounded-xl border border-line bg-background px-3 py-3 text-muted">
+          <p className="min-h-11 rounded-xl border border-line bg-background px-3 py-3 text-muted" aria-live="polite">
             {!showQuote
               ? "—"
               : quoting && !quote
@@ -155,17 +164,17 @@ export default function Swap() {
           </p>
         </TokenRow>
 
-        {fromKey === toKey && <p className="text-sm text-warn">Pick two different tokens.</p>}
+        {fromKey === toKey && <p className="text-sm text-warn-ink">Pick two different tokens.</p>}
         {showQuote && quote && (
           <p className="text-xs text-muted">
             Fees about ${feesUsd(quote).toFixed(2)} · arrives in ~{Math.max(quote.details.timeEstimate, 1)}s ·
             to your {CHAINS[to.chain].name} wallet
           </p>
         )}
-        {showQuote && quoteError && !quoting && <p className="text-sm text-danger">{quoteError}</p>}
-        {tooMuch && <p className="text-sm text-warn">That&apos;s more than your {from.symbol} balance.</p>}
+        {showQuote && quoteError && !quoting && <p role="alert" className="text-sm text-danger-ink">{quoteError}</p>}
+        {tooMuch && <p className="text-sm text-warn-ink">That&apos;s more than your {from.symbol} balance.</p>}
         {lowFees && (
-          <p className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
+          <p className={`rounded-lg px-3 py-2 text-xs ${tint.warn}`}>
             Your {CHAINS[from.chain].name} wallet needs a little {from.chain === "base" ? "ETH" : "SOL"} to pay the
             network fee.
           </p>
@@ -175,7 +184,7 @@ export default function Swap() {
         )}
 
         {testnet && (
-          <p className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn">
+          <p className={`rounded-lg px-3 py-2 text-xs ${tint.warn}`}>
             Swaps move real tokens: there&apos;s no test version. Switch to Mainnet to swap.
           </p>
         )}
@@ -198,11 +207,9 @@ export default function Swap() {
                 : `Swap ${from.symbol} → ${to.symbol}`}
         </button>
 
-        {error && <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+        {error && <p role="alert" className={`rounded-lg px-3 py-2 text-sm ${tint.danger}`}>{error}</p>}
         {result && (
-          <p
-            className={`rounded-lg px-3 py-2 text-sm ${result.status === "success" ? "bg-accent/10 text-accent" : "bg-warn/10 text-warn"}`}
-          >
+          <p role="status" className={`rounded-lg px-3 py-2 text-sm ${result.status === "success" ? tint.accent : tint.warn}`}>
             {result.status === "success"
               ? `Done. Your ${to.symbol} is in your ${CHAINS[to.chain].name} wallet.`
               : result.status === "refund"
@@ -253,7 +260,7 @@ function TokenRow({
         <span className="text-xs text-muted">
           {balance && <>Balance: {balance}</>}
           {onMax && (
-            <button className="ml-2 underline" onClick={onMax}>
+            <button className={`${textLink} ml-2 min-h-0 py-2`} onClick={onMax}>
               Max
             </button>
           )}

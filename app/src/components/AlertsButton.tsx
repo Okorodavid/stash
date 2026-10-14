@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { usePreview } from "@/lib/preview";
+import { BellIcon } from "./Icons";
 import { btnGhost } from "./ui";
 
 /** Opens the Stash Telegram bot with a one-time code tied to the signed-in user's own wallet. */
@@ -35,10 +36,11 @@ export default function AlertsButton({ label = "Get Telegram alerts" }: { label?
 
   return (
     <div>
-      <button className={`${btnGhost} w-full`} onClick={open} disabled={opening}>
-        {opening ? "Opening Telegram…" : `🔔 ${label}`}
+      <button className={`${btnGhost} flex w-full items-center justify-center gap-2`} onClick={open} disabled={opening}>
+        <BellIcon width={18} height={18} />
+        {opening ? "Opening Telegram…" : label}
       </button>
-      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   );
 }

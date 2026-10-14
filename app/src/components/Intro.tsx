@@ -1,3 +1,5 @@
+import { btn } from "./ui";
+
 export default function Intro({
   loading,
   onStart,
@@ -20,7 +22,7 @@ export default function Intro({
         </>
       ) : (
         <>
-          <h1 className="text-3xl font-semibold leading-tight">Save and gain interest. A Stolen Key or seedphrase can&apos;t drain you.</h1>
+          <h1 className="text-3xl font-semibold leading-tight">Save and gain interest. A stolen key or seed phrase can&apos;t drain you.</h1>
           <ul className="space-y-2 text-muted">
             <li>• Small amounts move instantly, up to your daily limit.</li>
             <li>• Big withdrawals wait 24 hours or longer (you choose), and your guardians can stop them.</li>
@@ -31,12 +33,12 @@ export default function Intro({
       <button
         onClick={onStart}
         disabled={loading}
-        className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-accent-fg disabled:opacity-60"
+        className={btn}
       >
         {loading ? "Loading…" : guardian ? "Sign in as guardian" : "Get started"}
       </button>
       {!guardian && process.env.NEXT_PUBLIC_DEMO_VAULT && (
-        <a href="/drain" className="block text-center text-sm text-muted underline">
+        <a href="/drain" className="flex min-h-11 items-center justify-center text-sm text-muted underline underline-offset-2 hover:text-foreground">
           Watch a thief try to drain a vault
         </a>
       )}

@@ -156,6 +156,11 @@ export const HOME_IS_SAVE = HOME === SAVE;
 /** Vault the public drain test (and the signed-out preview's drain link) points at, per network. */
 export const DEMO_VAULT = HOME_CHAIN === "tempo" ? MODES[MODE].demoVault : undefined;
 
+/** Morpho vault the Tempo main account earns in: Sentora pathUSD, the largest pathUSD vault on Tempo. */
+export const TEMPO_EARN_MAINNET: Address = "0x9a044AE05E5e6290DcF56afd69548565e957a626";
+/** Tempo's testnet has no Morpho, so earning on Tempo only runs on mainnet. */
+export const TEMPO_EARN: Address | undefined = HOME_CHAIN === "tempo" && MODE === "mainnet" ? TEMPO_EARN_MAINNET : undefined;
+
 /** Stash service guardian, added to every new vault by default. Its key lives only in the worker. */
 export const STASH_GUARDIAN = env(process.env.NEXT_PUBLIC_STASH_GUARDIAN);
 

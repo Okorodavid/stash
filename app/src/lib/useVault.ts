@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { zeroAddress, type Address } from "viem";
 import { erc20Abi, stashFactoryAbi } from "./abis";
 import { HAS_TEST_FAUCET, depositRoom, fundFromTestFaucet, net, publicClient, readOwnerMove, readPending, readVault, vaultCall, type Call, type OwnerMove, type Pending } from "./chain";
-import { DEFAULT_POLICY, DEMO_VAULT, STASH_GUARDIAN, policyFor, type Token } from "./config";
+import { DEFAULT_POLICY, DEMO_VAULT, STASH_GUARDIAN, TEMPO_EARN, policyFor, type Token } from "./config";
 import { signUpInstead, usePreview } from "./preview";
 import { useSender } from "./useSender";
 
@@ -17,6 +17,36 @@ export type Goal = {
   breakFeeBps: number;
   locked: bigint;
 };
+
+/** Earning on the main account through a Morpho vault (Tempo mainnet). */
+export type Earn = {
+  adapter: Address;
+  /** The vault may deposit into it (turned on, and its waiting period has passed). */
+  active: boolean;
+  /** When a turn-on finishes waiting (unix seconds); 0 if none is queued. */
+  readyAt: number;
+  shares: bigint;
+  /** Dollar value of the shares, in the token's units (pathUSD, 6 decimals). */
+  earning: bigint;
+};
+
+const erc4626Abi = [
+  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "convertToAssets", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "uint256" }] },
+] as const;
+
+async function readEarn(vault: Address): Promise<Earn | null> {
+  if (!TEMPO_EARN) return null;
+  const adapter = TEMPO_EARN;
+  const [active, readyAt, shares] = await Promise.all([
+    readVault(vault, "isYieldTarget", [adapter]) as Promise<boolean>,
+    readVault(vault, "yieldTargetEffectiveAt", [adapter]) as Promise<bigint>,
+    publicClient.readContract({ address: adapter, abi: erc4626Abi, functionName: "balanceOf", args: [vault] }),
+  ]);
+  const earning =
+    shares > 0n ? await publicClient.readContract({ address: adapter, abi: erc4626Abi, functionName: "convertToAssets", args: [shares] }) : 0n;
+  return { adapter, active, readyAt: Number(readyAt), shares, earning };
+}
 
 export type AutoSavePlan = {
   token: Address;
@@ -47,6 +77,8 @@ export type VaultState = {
   goals: Goal[];
   /** Auto-save plan where the user's own wallet is the paying source (null if none). */
   autoSave: AutoSavePlan | null;
+  /** Earning on the main account; null where it isn't offered (testnet, or Base as home). */
+  earn: Earn | null;
 };
 
 /** The signed-in user's own vault: state plus owner actions. */
@@ -70,6 +102,7 @@ export const sampleVaultState = (base?: VaultState | null): VaultState => ({
   goals: [],
   autoSave: null,
   depositRoomUsd: base?.depositRoomUsd ?? null,
+  earn: null,
 });
 
 export function useVault() {
@@ -108,12 +141,13 @@ export function useVault() {
         pending: [],
         goals: [],
         autoSave: null,
+        earn: null,
       });
       return;
     }
     const read = (fn: string, args: readonly unknown[] = []) => readVault(vault, fn, args);
 
-    const [frozen, approver, allowanceUsd, policy, guardians, nextId, goalCount, plan, proposed, room] = await Promise.all([
+    const [frozen, approver, allowanceUsd, policy, guardians, nextId, goalCount, plan, proposed, room, earn] = await Promise.all([
       read("frozen"),
       read("unfreezeApprovedBy"),
       read("remainingDailyLimit"),
@@ -124,6 +158,7 @@ export function useVault() {
       read("autoSaves", [owner]),
       read("pendingPolicy"),
       depositRoom(net.factory, vault),
+      readEarn(vault).catch(() => null),
     ]);
     const goalIds = Array.from({ length: Math.min(Number(goalCount), 20) }, (_, i) => i + 1);
     const goals: Goal[] = (await Promise.all(goalIds.map((id) => read("goals", [id])))).map((g, i) => ({
@@ -171,6 +206,7 @@ export function useVault() {
       pending: await readPending(vault, nextId),
       goals,
       autoSave,
+      earn,
     });
   }, [owner]);
 
@@ -263,9 +299,10 @@ export function useVault() {
         v("authorizeAutoSave", [token.address, amount, BigInt(interval), goalId]),
       ]);
     },
-    stopAutoSave: () => send("Stopping auto-save", [v("revokeAutoSave", [owner])]),
+    /** The owner can stop any auto-save into the vault, including one paid from another wallet. */
+    stopAutoSave: (source?: Address) => send("Stopping auto-save", [v("revokeAutoSave", [source ?? owner])]),
     /** Normally the worker does this on schedule; anyone may trigger a due pull. */
-    runAutoSaveNow: () => send("Running auto-save", [v("pullAutoSave", [owner])]),
+    runAutoSaveNow: (source?: Address) => send("Running auto-save", [v("pullAutoSave", [source ?? owner])]),
     withdraw: (token: Token, to: Address, amount: bigint) => send("Sending", [v("withdraw", [token.address, to, amount])]),
     requestWithdrawal: (token: Token, to: Address, amount: bigint) =>
       send("Starting the wait", [v("requestWithdrawal", [token.address, to, amount])]),
@@ -287,6 +324,15 @@ export function useVault() {
     nominateOwner: (newOwner: Address) => send("Requesting the move", [v("nominateOwner", [newOwner])]),
     applyOwnerChange: () => send("Moving your vault", [v("applyOwnerChange")]),
     cancelRules: () => send("Cancelling the rules change", [v("cancelPolicy")]),
+    /**
+     * Earning on Tempo. Letting the vault use a new yield vault loosens its rules, so turning it on
+     * waits the vault's own waiting period (guardians can cancel); after that it's one tap.
+     */
+    turnOnEarning: () => send("Turning on earning", [v("proposeYieldTarget", [TEMPO_EARN])]),
+    finishTurningOnEarning: () => send("Turning on earning", [v("activateYieldTarget", [TEMPO_EARN])]),
+    startEarning: (amount: bigint) => send("Starting to earn", [v("depositToYield", [TEMPO_EARN, amount])]),
+    /** Everything earning comes back to the main account, interest included. */
+    stopEarning: () => send("Moving back to your main account", [v("redeemFromYield", [TEMPO_EARN, state?.earn?.shares ?? 0n])]),
   };
 
   if (preview) {

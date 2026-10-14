@@ -4,11 +4,11 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Stash",
     short_name: "Stash",
-    description: "Save and gain interest. A Stolen Key or seedphrase can't drain you.",
+    description: "Save and gain interest. A stolen key or seed phrase can't drain you.",
     start_url: "/",
     display: "standalone",
-    background_color: "#fafaf9",
-    theme_color: "#0f766e",
+    background_color: "#0a0f0e",
+    theme_color: "#0a0f0e",
     icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   };
 }

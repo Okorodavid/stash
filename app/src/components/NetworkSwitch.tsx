@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ASK_MAINNET_EVENT, MODE, switchMode, type Mode } from "@/lib/config";
+import Modal from "./Modal";
+import { btnGhost, btnWarn } from "./ui";
 
 const CONFIRM_KEY = "stash:mainnet-ok";
 
@@ -64,7 +66,10 @@ export default function NetworkSwitch() {
       type="button"
       onClick={() => go(m)}
       aria-pressed={mode === m}
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${mode === m ? on : "text-muted hover:text-foreground"}`}
+      // The pill is small; an invisible pad gives it a 44px tall tap area.
+      className={`relative rounded-full px-3 py-1.5 text-xs font-semibold after:absolute after:-inset-y-2 after:inset-x-0 after:content-[''] ${
+        mode === m ? on : "text-muted hover:text-foreground"
+      }`}
     >
       {label}
     </button>
@@ -73,36 +78,31 @@ export default function NetworkSwitch() {
   return (
     <span className="flex flex-col items-end gap-0.5">
       <span className="flex rounded-full border border-line p-0.5" role="group" aria-label="Network">
-        {pill("testnet", "Testnet", "bg-accent/15 text-accent")}
-        {pill("mainnet", "Mainnet", "bg-warn/20 text-warn")}
+        {pill("testnet", "Testnet", "bg-accent/15 text-accent-ink")}
+        {pill("mainnet", "Mainnet", "bg-warn/20 text-warn-ink")}
       </span>
-      <span className="text-[10px] text-muted">
+      <span className="text-xs text-muted">
         {mode === "mainnet" ? "Real money · unaudited" : "Free test money · unaudited"}
       </span>
       {asking && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Switch to mainnet"
-          onClick={(e) => e.target === e.currentTarget && setAsking(false)}
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-warn/40 bg-card p-5 text-left shadow-xl">
-            <p className="text-lg font-semibold">Switch to mainnet?</p>
+      <Modal label="Switch to mainnet" onClose={() => setAsking(false)}>
+          <div className="rounded-2xl border border-warn/40 bg-card p-5 text-left shadow-xl">
+            <h2 className="text-lg font-semibold">Switch to mainnet?</h2>
             <p className="mt-2 text-sm text-muted">
               Mainnet uses real money. Stash is unaudited beta software, so keep amounts small: each vault holds at most
               $5,000 for now.
             </p>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
-              <button className="flex-1 rounded-xl bg-warn px-4 py-2.5 font-semibold text-warn-fg" onClick={confirmMainnet}>
-                Use real money
-              </button>
-              <button className="flex-1 rounded-xl border border-line px-4 py-2.5 font-semibold" onClick={() => setAsking(false)}>
+            {/* The safe choice comes first, so the dialog opens with focus on it. */}
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <button className={`${btnGhost} sm:flex-1`} onClick={() => setAsking(false)}>
                 Stay on testnet
+              </button>
+              <button className={`${btnWarn} sm:flex-1`} onClick={confirmMainnet}>
+                Use real money
               </button>
             </div>
           </div>
-        </div>
+      </Modal>
       )}
     </span>
   );
