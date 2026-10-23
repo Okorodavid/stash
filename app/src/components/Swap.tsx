@@ -114,10 +114,6 @@ export default function Swap({ embedded }: { embedded?: boolean }) {
         ) : (
           <h1 className="text-3xl font-semibold leading-tight">Swap between chains</h1>
         )}
-        <p className="text-sm text-muted">
-          Move dollars, ETH, SOL or bitcoin between your own wallets on Tempo, Base and Solana. Routed by Relay; usually
-          done in seconds.
-        </p>
       </section>
 
       <section className={`${card} space-y-3`}>
@@ -175,19 +171,10 @@ export default function Swap({ embedded }: { embedded?: boolean }) {
         {tooMuch && <p className="text-sm text-warn-ink">That&apos;s more than your {from.symbol} balance.</p>}
         {lowFees && (
           <p className={`rounded-lg px-3 py-2 text-xs ${tint.warn}`}>
-            Your {CHAINS[from.chain].name} wallet needs a little {from.chain === "base" ? "ETH" : "SOL"} to pay the
-            network fee.
+            Needs a little {from.chain === "base" ? "ETH" : "SOL"} on {CHAINS[from.chain].name} for the fee.
           </p>
-        )}
-        {from.chain === "tempo" && (
-          <p className="text-xs text-muted">Tempo has no gas token: the network fee (a fraction of a cent) is paid in dollars.</p>
         )}
 
-        {testnet && (
-          <p className={`rounded-lg px-3 py-2 text-xs ${tint.warn}`}>
-            Swaps move real tokens: there&apos;s no test version. Switch to Mainnet to swap.
-          </p>
-        )}
         <button
           className={btn}
           disabled={!canSwap}
@@ -224,16 +211,7 @@ export default function Swap({ embedded }: { embedded?: boolean }) {
         )}
       </section>
 
-      <section className="space-y-1 text-xs text-muted">
-        <p>
-          Swaps use your wallet balances, not your vault. Money in your vault stays behind its daily limit and waiting
-          period; send it to your wallet first if you want to swap it.
-        </p>
-        <p>
-          Real money on mainnet. Relay fronts the funds on the destination chain and settles with your deposit; Stash
-          never holds your tokens. Prices move, so the amount you get can differ slightly from the estimate.
-        </p>
-      </section>
+      <p className="text-xs text-muted">Uses your wallet balances, not your vault. Real money; the final amount can vary.</p>
     </div>
   );
 }

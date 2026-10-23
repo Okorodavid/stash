@@ -27,7 +27,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
       <h3 className={cardTitle}>Save pot</h3>
       <span className="text-xs text-muted">
         {typeof rate === "number" && <span className="font-semibold text-accent">{pct(rate)} a year · </span>}
-        earns on {network.chain.name}
+        {network.chain.name}
       </span>
     </div>
   );
@@ -37,7 +37,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
   const noGas = state.walletGas === 0n;
   const gasNote = noGas && (
     <p className={`mt-2 rounded-lg px-3 py-2 text-xs ${tint.warn}`}>
-      Your wallet needs a little {network.chain.nativeCurrency.symbol} on {network.chain.name} to pay network fees.
+      Needs a little {network.chain.nativeCurrency.symbol} on {network.chain.name} for network fees.
     </p>
   );
 
@@ -46,7 +46,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
       <section className={card}>
         {title}
         <p className="mt-1 text-sm text-muted">
-          A second vault with the same rules and guardians, where your dollars earn interest. Wallet: {usd(state.walletUsdc, usdc.decimals)} {usdc.symbol}
+          Wallet {usd(state.walletUsdc, usdc.decimals)} {usdc.symbol}
         </p>
         {gasNote}
         <button className={`${btn} mt-3`} disabled={!!busy || noGas} onClick={() =>
@@ -78,7 +78,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
         {state.frozen && <span className="text-danger"> · frozen</span>}
       </p>
       {testnet && (
-        <p className="mt-1 text-xs text-muted">Testnet stand-in vault (0% yield). On mainnet this is a curated Morpho USDC vault.</p>
+        <p className="mt-1 text-xs text-muted">Testnet · 0% yield</p>
       )}
       {gasNote}
       {busy && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.accent}`}>{busy}…</p>}
@@ -111,7 +111,7 @@ export default function SavePotCard({ home, pot }: { home: Loaded; pot: ReturnTy
           disabled={!!busy || state.frozen}
           onClick={() => actions.stopEarning().then((h) => h && notify("Stopped earning. The money is ready to withdraw."))}
         >
-          Stop earning so it can be withdrawn
+          Stop earning to withdraw
         </button>
       )}
 
@@ -205,7 +205,7 @@ function EarnCard({ pot }: { pot: ReturnType<typeof useSavePot> }) {
       </div>
       <p className="text-3xl font-semibold">{usd(state.earning, usdc.decimals)}</p>
       <p className="text-sm text-muted">
-        earning · {usd(state.idle, usdc.decimals)} in your main account, not earning
+        earning · {usd(state.idle, usdc.decimals)} not earning
         {state.frozen && <span className="text-danger"> · frozen</span>}
       </p>
       {busy && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.accent}`}>{busy}…</p>}
@@ -233,10 +233,9 @@ function EarnCard({ pot }: { pot: ReturnType<typeof useSavePot> }) {
           disabled={!!busy || state.frozen}
           onClick={() => actions.stopEarning().then((h) => h && notify("Stopped earning. The money is back in your main account."))}
         >
-          Stop earning (back to your main account)
+          Stop earning
         </button>
       )}
-      <p className="mt-2 text-xs text-muted">Earning money stays in your vault, behind the same limits and guardians.</p>
       <PotInfo pot="save" />
     </section>
   );

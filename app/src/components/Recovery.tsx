@@ -75,19 +75,12 @@ export default function RecoveryCard({ owner }: { owner: string }) {
   return (
     <section className={`${card} border-warn`}>
       <h3 className={cardTitle}>Back up your recovery key</h3>
-      <p className="mt-1 text-sm text-muted">
-        Your vault is yours, not ours. If Stash ever shuts down, this key plus our open-source exit page lets you withdraw
-        everything without us.
-      </p>
-      <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
-        <li>Tap below. The key opens in a secure Privy window; Stash never sees it.</li>
-        <li>Copy it in that window. After this, the key is only under Account.</li>
-        <li>Write it on paper or save it in a password manager. Never screenshot it or send it to anyone.</li>
-        <li>Anyone who asks for it, including someone claiming to be Stash, is trying to rob you.</li>
-      </ol>
-      <p className="mt-2 text-xs text-muted">
-        Even with this key, a thief still faces your daily limit, the waiting period, and your guardians. But keep it safe.
-      </p>
+      <ul className="mt-2 space-y-1 text-sm">
+        <li>Opens in Privy&apos;s window. Stash never sees it.</li>
+        <li>Save it on paper or in a password manager. No screenshots.</li>
+        <li>Never share it, even with &quot;Stash&quot;.</li>
+        <li className="text-muted">Later: under Account.</li>
+      </ul>
       {error && <p role="alert" className="mt-2 text-sm text-danger-ink">{error}</p>}
       <button
         className={`${btn} mt-3`}
@@ -112,14 +105,10 @@ export function RecoverySettings({ owner }: { owner: string }) {
   return (
     <section className={card}>
       <h3 className={cardTitle}>Recovery key</h3>
-      <p className="mt-1 text-sm text-muted">
-        {saved
-          ? "Backed up. Only view it again if you need to move it somewhere safe or use the exit page."
-          : "Not backed up yet. Your vault can only be recovered without Stash if you save this key."}
-      </p>
+      <p className="mt-1 text-sm text-muted">{saved ? "Backed up" : "Not backed up yet"}</p>
       {open ? (
         <div className="mt-3 space-y-2 text-sm">
-          <p>Make sure no one can see your screen. Never screenshot it or send it to anyone, including Stash.</p>
+          <p>No one watching? Never screenshot or share it.</p>
           <div className="flex gap-2">
             <button
               className={btn}
@@ -144,9 +133,8 @@ export function RecoverySettings({ owner }: { owner: string }) {
       {EXIT_URL && (
         <p className="mt-3 text-sm">
           <a className="underline" href={EXIT_URL} target="_blank" rel="noreferrer">
-            Open the exit page
-          </a>{" "}
-          <span className="text-muted">(withdraw without Stash)</span>
+            Withdraw without Stash (exit page)
+          </a>
         </p>
       )}
     </section>

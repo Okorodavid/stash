@@ -63,12 +63,7 @@ export function GoalsCard({ ctx }: { ctx: Loaded }) {
           </button>
         )}
       </div>
-      <p className="mb-2 text-sm text-muted">Lock money until a date. Unlocking early costs a small fee.</p>
-
-      {state.goals.length === 0 && !creating && (
-        <p className="text-sm">Saving for rent, school fees or a trip? Make it a goal and the money stays put until the date you pick.</p>
-      )}
-      <ul className="space-y-3">
+      <ul className="mt-3 space-y-3 empty:hidden">
         {state.goals.map((g) => (
           <GoalRow key={g.id} goal={g} ctx={ctx} />
         ))}
@@ -167,7 +162,7 @@ function GoalRow({ goal, ctx }: { goal: Goal; ctx: Loaded }) {
       {/* In-page confirm: browser pop-ups are blocked in many in-app browsers. */}
       {confirming && (
         <div className={`mt-2 rounded-lg p-3 ${tint.warn}`} role="group" aria-label="Confirm early unlock">
-          <p>Unlocking early costs {usd(fee, token.decimals)}. The rest goes back to your vault.</p>
+          <p>Early unlock costs {usd(fee, token.decimals)}.</p>
           <div className="mt-2 flex gap-2">
             <button
               className={btnDanger}
@@ -312,11 +307,7 @@ export function AutoSaveCard({ ctx }: { ctx: Loaded }) {
 
   return (
     <section className={card}>
-      <h3 className={cardTitle}>Auto-save</h3>
-      <p className="mb-2 text-sm text-muted">
-        Move a fixed amount from another wallet into your vault on a schedule. Once it lands, it&apos;s behind your
-        limits and guardians. The vault can only pull that amount, only into your savings.
-      </p>
+      <h3 className={`${cardTitle} mb-2`}>Auto-save</h3>
 
       {all.length > 0 && (
         <ul className="mb-3 space-y-2">
@@ -328,7 +319,7 @@ export function AutoSaveCard({ ctx }: { ctx: Loaded }) {
                   {usd(p.amount, token.decimals)} {frequency(p.interval)} from {fromName(p.source)} into {destination(p.goalId)}
                 </p>
                 <p className="text-xs text-muted">
-                  {due ? "Next save is due now." : `Next save: ${new Date(p.nextAt * 1000).toLocaleString()}`}
+                  {due ? "Due now" : `Next: ${new Date(p.nextAt * 1000).toLocaleString()}`}
                 </p>
                 <div className="mt-2 flex gap-2">
                   {due && (
@@ -431,7 +422,7 @@ export function AutoSaveCard({ ctx }: { ctx: Loaded }) {
           </button>
           {other && (
             <p className="mt-2 text-xs text-muted">
-              That wallet approves a year of saves and pays a small network fee once. Keep enough {token.symbol} in it for each save.
+              Approves a year of saves from that wallet. Keep {token.symbol} in it.
             </p>
           )}
           {ext.busy && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.accent}`}>{ext.busy}…</p>}

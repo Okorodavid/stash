@@ -112,7 +112,7 @@ function NoVaultYet({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
   return (
     <PreviewProvider signUp={open}>
       <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-semibold">You&apos;re signed in. Create your vault to start saving.</p>
+        <p className="font-semibold">This is a sample vault.</p>
         <button className={`${btn} sm:w-auto sm:shrink-0 sm:px-5`} onClick={open}>
           Create vault
         </button>
@@ -239,8 +239,7 @@ function Vault({ ctx, onLogout }: { ctx: Loaded; onLogout: () => void }) {
           </div>
           {HOME_IS_SAVE && ctx.owner && pot.state?.walletGas === 0n && (
             <p className={`rounded-xl px-3 py-2 text-sm ${tint.warn}`}>
-              Your main account is on Base, where network fees are paid in ETH. Send a little ETH on Base to{" "}
-              <span className="font-mono">{short(ctx.owner)}</span> before saving or sending.
+              Send a little ETH on Base to <span className="font-mono">{short(ctx.owner)}</span> for network fees.
             </p>
           )}
           {s.pending.length > 0 && <PendingCard ctx={ctx} book={book} />}
@@ -444,22 +443,12 @@ function Hero({
       </div>
       <div className="mt-4 border-t border-line pt-3 text-sm">
         {s.frozen ? (
-          <p className="font-medium text-danger">Frozen: nothing can leave until a guardian approves unfreezing.</p>
-        ) : empty ? (
-          <p>
-            <span className="font-medium">Your vault is empty.</span>{" "}
-            <span className="text-muted">
-              Add dollars to start. Then up to {dollars(a.limit)} a day can leave instantly; anything bigger waits{" "}
-              {waitText(s.timelock)}.
-            </span>
-          </p>
+          <p className="font-medium text-danger">Frozen until a guardian approves unfreezing.</p>
         ) : (
-          <p>
-            <span className="font-medium">Send instantly now: {dollars(a.sendable)}.</span>{" "}
-            <span className="text-muted">
-              Your {dollars(a.limit)} daily limit refills {dollars(a.perHour)} an hour
-              {a.fullAt ? ` (full again ${when(a.fullAt, a.now)})` : ""}. Bigger amounts wait {waitText(s.timelock)}.
-            </span>
+          <p className="text-muted">
+            {dollars(a.limit)}/day instant
+            {!empty && ` · refills ${dollars(a.perHour)}/h${a.fullAt ? `, full ${when(a.fullAt, a.now)}` : ""}`} · bigger waits{" "}
+            {waitText(s.timelock)}
           </p>
         )}
       </div>
@@ -541,7 +530,6 @@ function protectionStatus(s: Loaded["state"]) {
       Icon: SnowflakeIcon,
       title: "Frozen",
       short: "Nothing can leave",
-      body: "Nothing can leave until a guardian approves unfreezing.",
       tint: tint.danger,
       border: "border-danger/40",
     };
@@ -550,7 +538,6 @@ function protectionStatus(s: Loaded["state"]) {
       Icon: HourglassIcon,
       title: `${waiting} withdrawal${waiting > 1 ? "s" : ""} waiting`,
       short: "Not you? Freeze now.",
-      body: "Check it's you. If not, cancel it or freeze your vault.",
       tint: tint.warn,
       border: "border-warn/40",
     };
@@ -558,7 +545,6 @@ function protectionStatus(s: Loaded["state"]) {
     Icon: ShieldIcon,
     title: "Protected",
     short: `Worst case: ${usd(s.dailyLimitUsd, 18)} a day`,
-    body: `A stolen key can move at most ${usd(s.dailyLimitUsd, 18)} a day instantly. Anything more waits ${waitText(s.timelock)}, and your guardians can stop it.`,
     tint: tint.accent,
     border: "border-accent/30",
   };
@@ -573,10 +559,7 @@ function Jars({ main, save, saveChain, growth }: { main: number; save: number | 
   return (
     <section className={card}>
       <h3 className={cardTitle}>Where your money is</h3>
-      <p className="text-sm text-muted">
-        Each jar fills with its share of your savings.
-        {MODE !== "mainnet" && " Rates are live mainnet rates; test dollars don't earn."}
-      </p>
+      {MODE !== "mainnet" && <p className="text-sm text-muted">Test dollars don&apos;t earn.</p>}
       <div className="mt-4 grid grid-cols-3 gap-2 text-center">
         <Jar
           label="Main"
@@ -648,7 +631,6 @@ function Jar({
       </svg>
       <p className="mt-1 text-sm font-medium">{label}</p>
       <p className="truncate text-base font-semibold">{value}</p>
-      <p className="text-xs text-muted">{sub}</p>
       {(rate === undefined || typeof rate === "number") && (
         <p className={`mx-auto mt-1 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${tint.accent}`}>
           {rate === undefined ? "…" : `${pct(rate)} a year`}
@@ -678,7 +660,7 @@ function ProtectSummary({ ctx, book }: { ctx: Loaded; book: AddressBook }) {
           <st.Icon width={18} height={18} />
           {st.title}
         </h3>
-        <p className="mt-0.5 text-xs">{st.body}</p>
+        <p className="mt-0.5 text-xs">{st.short}</p>
       </div>
       <dl className="divide-y divide-line text-sm">
         <div className="flex justify-between gap-3 py-2">
@@ -703,7 +685,7 @@ function ProtectSummary({ ctx, book }: { ctx: Loaded; book: AddressBook }) {
           <p className="text-xs text-muted">
             {s.unfreezeApprovedBy
               ? `${book.nameOf(s.unfreezeApprovedBy) ?? `Guardian ${short(s.unfreezeApprovedBy)}`} approved unfreezing.`
-              : "To unfreeze, ask a guardian to approve it from their guardian link. This stops a thief with your key from undoing a freeze."}
+              : "A guardian must approve first."}
           </p>
           <button
             className={`${btn} mt-2`}
@@ -722,7 +704,7 @@ function ProtectSummary({ ctx, book }: { ctx: Loaded; book: AddressBook }) {
           >
             <SnowflakeIcon width={18} height={18} /> Hold to freeze my vault
           </HoldButton>
-          <p className="mt-1 text-center text-xs text-muted">Emergency stop: nothing can leave until a guardian helps unfreeze.</p>
+          <p className="mt-1 text-center text-xs text-muted">Unfreezing needs a guardian.</p>
         </div>
       )}
     </section>
@@ -757,7 +739,6 @@ function DrainLink({ vault }: { vault: string }) {
     <a href={preview ? "/drain" : `/drain?vault=${vault}`} className={`${card} flex items-center gap-3 hover:border-accent`}>
       <span className="flex-1">
         <span className="block font-semibold">What if someone stole your key?</span>
-        <span className="mt-1 block text-sm text-muted">Watch a simulated thief try to drain your vault. Nothing is sent.</span>
       </span>
       <ArrowRightIcon className="shrink-0 text-muted" />
     </a>
@@ -783,13 +764,12 @@ function SaveCard({ ctx, onDone }: { ctx: Loaded; onDone?: () => void }) {
         Save
       </h3>
       <p className="mb-2 text-sm text-muted">
-        Move dollars from your wallet into your vault, where limits and guardians protect them. In your wallet now:{" "}
-        {usd(t.wallet, t.token.decimals)}
-        {room !== null && <> · you can add {usd(room, 18)} more during the beta</>}
+        Wallet {usd(t.wallet, t.token.decimals)}
+        {room !== null && <> · beta limit: {usd(room, 18)} more</>}
       </p>
       {HAS_TEST_FAUCET && (
         <button className={`${textLink} text-xs text-muted`} disabled={!!busy} onClick={() => actions.getTestDollars()}>
-          Testnet: get free test dollars
+          Get free test dollars
         </button>
       )}
       <label htmlFor={`${id}-a`} className="sr-only">
@@ -819,11 +799,11 @@ function SaveCard({ ctx, onDone }: { ctx: Loaded; onDone?: () => void }) {
       </button>
       {overCap && (
         <p className="mt-1 text-xs text-warn-ink">
-          While Stash is unaudited, each vault holds at most a set amount. Thanks for testing with small sums.
+          Over your vault&apos;s beta limit.
         </p>
       )}
       {leavesNoFees && (
-        <p className="mt-1 text-xs text-warn-ink">Keep about $0.10 in your wallet: on Tempo it also pays the small network fees.</p>
+        <p className="mt-1 text-xs text-warn-ink">Leave about $0.10 in your wallet for network fees.</p>
       )}
     </section>
   );
@@ -932,9 +912,9 @@ function SendCard({ ctx, book, onDone }: { ctx: Loaded; book: AddressBook; onDon
       />
       <p id={`${id}-to-hint`} className="mt-1 text-xs">
         {to !== "" && !addressOk ? (
-          <span className="text-danger-ink">That isn&apos;t a complete address. It starts with 0x and has 42 characters.</span>
+          <span className="text-danger-ink">Incomplete address: 0x plus 40 characters.</span>
         ) : firstTime ? (
-          <span className="text-warn-ink">First time sending here. Check the address with the person before you send.</span>
+          <span className="text-warn-ink">New address. Check it with the recipient.</span>
         ) : null}
       </p>
       {amt > available && <p className="mt-1 text-xs text-danger-ink">That&apos;s more than your vault holds ({dollars(available)}).</p>}
@@ -942,14 +922,12 @@ function SendCard({ ctx, book, onDone }: { ctx: Loaded; book: AddressBook; onDon
         amt <= available &&
         (instant ? (
           <p className={`mt-2 rounded-xl px-3 py-2 text-sm ${tint.accent}`}>
-            Arrives instantly. Within today&apos;s limit ({usd(s.allowanceUsd, 18)} left).
+            Instant · {usd(s.allowanceUsd, 18)} left today
           </p>
         ) : (
           <div className={`mt-2 flex gap-2 rounded-xl px-3 py-2 text-sm ${tint.warn}`}>
             <HourglassIcon className="mt-0.5 shrink-0" width={18} height={18} />
-            <p>
-              Over your instant limit, so this waits {waitText(s.timelock)}. Your guardians can see it and stop it until then.
-            </p>
+            <p>Over your instant limit.</p>
           </div>
         ))}
       <button
@@ -970,7 +948,7 @@ function SendCard({ ctx, book, onDone }: { ctx: Loaded; book: AddressBook; onDon
           Send {dollars(maxInstant)} now instead
         </button>
       )}
-      {s.frozen && <p className="mt-2 text-xs text-danger-ink">Your vault is frozen, so nothing can be sent.</p>}
+      {s.frozen && <p className="mt-2 text-xs text-danger-ink">Frozen: nothing can be sent.</p>}
     </section>
   );
 }
@@ -1007,7 +985,7 @@ function PendingCard({ ctx, book }: { ctx: Loaded; book: AddressBook }) {
                       ? `Leaves in ${timeLeft(p.unlockAt - now)} · can be stopped until ${when(p.unlockAt, now)}`
                       : `Leaves ${when(p.unlockAt)}`}
                 </p>
-                {p.guardianApproved && <p className="text-xs text-muted">A guardian marked it as reviewed</p>}
+                {p.guardianApproved && <p className="text-xs text-muted">Guardian reviewed</p>}
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 {ready && (
@@ -1049,21 +1027,20 @@ function GuardiansCard({ ctx, book }: { ctx: Loaded; book: AddressBook }) {
   return (
     <section className={card}>
       <h3 className={cardTitle}>Guardians ({guardians.length}/3)</h3>
-      <p className="mb-3 text-sm text-muted">Any guardian can stop a withdrawal or freeze your vault. None can take your money.</p>
-      <ul className="mb-3 space-y-2">
+      <ul className="my-3 space-y-2">
         {guardians.map((a) => (
           <GuardianRow key={a} address={a} book={book} />
         ))}
       </ul>
       <GuardianLink vault={ctx.state.vault!} />
       <div className="mb-3">
-        <AlertsButton label="Get Telegram alerts for my vault" />
+        <AlertsButton />
       </div>
       {guardians.length < 3 && (
         <div className="rounded-xl border border-line p-3">
           <h4 className="text-sm font-semibold">Add a guardian</h4>
           <label htmlFor={`${id}-n`} className="mt-2 block text-xs text-muted">
-            Who is it?
+            Name
           </label>
           <input
             id={`${id}-n`}
@@ -1073,7 +1050,7 @@ function GuardiansCard({ ctx, book }: { ctx: Loaded; book: AddressBook }) {
             onChange={(e) => setLabel(e.target.value)}
           />
           <label htmlFor={`${id}-a`} className="mt-2 block text-xs text-muted">
-            Their address
+            Address
           </label>
           <input
             id={`${id}-a`}
@@ -1112,9 +1089,8 @@ function GuardianRow({ address, book }: { address: string; book: AddressBook }) 
   const id = useId();
   if (isStash(address)) {
     return (
-      <li className="flex min-h-11 items-center justify-between gap-2">
+      <li className="flex min-h-11 items-center">
         <GuardianName address={address} book={book} />
-        <span className="text-xs text-muted">Always independent</span>
       </li>
     );
   }
@@ -1172,15 +1148,9 @@ function CreateVault({
   return (
     <section className={card}>
       <h2 className="text-lg font-semibold tracking-tight">Create your vault</h2>
-      <p className="mt-1 text-sm text-muted">
-        Small amounts go out instantly up to your daily limit. Anything bigger waits, so you or your guardians can stop it.
-        You can change both later.
-      </p>
       <LimitPicker value={limit} onChange={setLimit} />
       <WaitPicker hours={hours} onChange={setHours} />
-      <p className="mt-3 text-sm text-muted">
-        Main account on {HOME_CHAINS.find((c) => c.id === HOME_CHAIN)?.label}. You can switch between Tempo and Base from Home.
-      </p>
+      <p className="mt-3 text-sm text-muted">Network: {HOME_CHAINS.find((c) => c.id === HOME_CHAIN)?.label}</p>
       {STASH_GUARDIAN && (
         <p className="mt-3 flex items-center gap-2 text-sm">
           <ShieldIcon width={16} height={16} className="text-accent" /> Stash is your first guardian
@@ -1214,14 +1184,10 @@ function OwnKeyCard({ owner }: { owner: string }) {
   return (
     <section className={card}>
       <h3 className={cardTitle}>Your key</h3>
-      <p className="mt-1 text-sm text-muted">
-        You signed in with your own wallet (<span className="font-mono">{short(owner)}</span>), so the key that controls
-        your vault lives in that wallet app. Stash never had it. Back it up the way your wallet app tells you (usually a
-        seed phrase), and never share it.
+      <p className="mt-1 text-sm">
+        <span className="font-mono">{short(owner)}</span> · in your wallet app. Stash never sees it.
       </p>
-      <p className="mt-2 text-sm text-muted">
-        If you think it leaked, use &quot;Move your vault to a new login&quot; below with one of your guardians.
-      </p>
+      <p className="mt-1 text-sm text-muted">Leaked? Move your vault below.</p>
     </section>
   );
 }
@@ -1232,12 +1198,8 @@ function PreviewAccountCard() {
   return (
     <section className={card}>
       <h3 className={cardTitle}>Your account</h3>
-      <p className="mt-1 text-sm text-muted">
-        Sign up with email or Google. You get a dollar account on Tempo, a Save pot on Base and a Growth pot on Solana,
-        plus a recovery key only you can see, so your money is never stuck with us.
-      </p>
       <button className={`${btn} mt-3`} onClick={signUp}>
-        Sign up
+        Sign up with email or Google
       </button>
     </section>
   );
@@ -1318,7 +1280,6 @@ function WaitPicker({ hours, onChange }: { hours: number; onChange: (h: number) 
   return (
     <fieldset className="mt-4">
       <legend className="text-sm font-medium">Waiting period for big withdrawals</legend>
-      <p className="text-xs text-muted">Longer gives you and your guardians more time to stop a thief. 24 hours minimum.</p>
       <div className="mt-2 grid grid-cols-4 gap-2">
         {PRESETS.map((h) => (
           <Choice
@@ -1420,7 +1381,7 @@ function RulesCard({ ctx }: { ctx: Loaded }) {
     <section className={card}>
       <h3 className={cardTitle}>Your rules</h3>
       <p className="mt-1 text-sm text-muted">
-        Instant up to {usd(s.dailyLimitUsd, 18)} a day. Bigger withdrawals wait {waitText(s.timelock)}.
+        Instant up to {usd(s.dailyLimitUsd, 18)} a day · bigger waits {waitText(s.timelock)}
       </p>
 
       {p ? (
@@ -1440,9 +1401,7 @@ function RulesCard({ ctx }: { ctx: Loaded }) {
             {p.largeThresholdUsd !== s.largeThresholdUsd && <li>Single instant send under {usd(p.largeThresholdUsd, 18)}</li>}
           </ul>
           <p className="mt-1">
-            {ready
-              ? "The wait is over. Apply it to switch the new rules on."
-              : `Takes effect ${when(p.effectiveAt, now || undefined)}. You or any guardian can cancel it before then.`}
+            {ready ? "Ready to apply." : `Takes effect ${when(p.effectiveAt, now || undefined)}.`}
           </p>
           <div className="mt-2 flex gap-2">
             {ready && (
@@ -1468,7 +1427,6 @@ function RulesCard({ ctx }: { ctx: Loaded }) {
           <label className="block text-sm font-medium" htmlFor="daily-limit">
             Instant limit per day
           </label>
-          <p className="text-xs text-muted">What can leave without waiting. Lower is safer; $0 means every send waits.</p>
           <div className="relative mt-2">
             <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted">$</span>
             <input
@@ -1485,17 +1443,8 @@ function RulesCard({ ctx }: { ctx: Loaded }) {
 
           <WaitPicker hours={hours} onChange={setHours} />
 
-          {changed && (
-            <p className={`mt-3 rounded-lg px-3 py-2 text-xs ${immediate ? tint.accent : tint.warn}`}>
-              {immediate
-                ? "These rules are stricter, so they apply right away."
-                : `These rules loosen your protection, so they only take effect after your current ${waitText(s.timelock)} wait${
-                    takesEffect ? ` (${takesEffect})` : ""
-                  }. You and your guardians get an alert and can cancel it before then.`}
-            </p>
-          )}
           {!immediate && changed && s.frozen && (
-            <p className="mt-1 text-xs text-warn-ink">Your vault is frozen, so you can only make the rules stricter.</p>
+            <p className="mt-1 text-xs text-warn-ink">Frozen: only stricter rules allowed.</p>
           )}
           <div className="mt-2 flex gap-2">
             <button
@@ -1538,27 +1487,23 @@ function HomeChainCard() {
   return (
     <section className={card}>
       <h3 className={cardTitle}>Main account network</h3>
-      <p className="mt-1 text-sm text-muted">
-        Your main account lives on one network. Switching shows that network&apos;s vault; your vault on the other one stays
-        where it is, with its own money and guardians.
-      </p>
       <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="Main account network">
         {HOME_CHAINS.map((c) => (
           <button
             key={c.id}
             type="button"
             aria-pressed={HOME_CHAIN === c.id}
+            title={c.note}
             className={`${btnGhost} text-left ${HOME_CHAIN === c.id ? "border-accent bg-accent/10" : ""}`}
             onClick={() => c.id !== HOME_CHAIN && setAsking(c.id)}
           >
             <span className={`block font-semibold ${HOME_CHAIN === c.id ? "text-accent-ink" : ""}`}>{c.label}</span>
-            <span className="block text-xs font-normal text-muted">{c.note}</span>
           </button>
         ))}
       </div>
       {target && (
         <div className="mt-3 rounded-xl border border-line p-3 text-sm">
-          <p>Switch to your {target.label} vault? The app reloads. Nothing moves between networks.</p>
+          <p>Switch to your {target.label} vault? Nothing moves between networks.</p>
           <div className="mt-2 flex gap-2">
             <button className={`${btn} flex-1`} onClick={() => switchHome(target.id)}>
               Switch to {target.label}
@@ -1606,11 +1551,8 @@ function TempoEarnCard({ ctx }: { ctx: Loaded }) {
     return (
       <section className={card}>
         {header}
-        <p className="mt-1 text-sm text-muted">
-          Your pathUSD earns through Morpho on Tempo mainnet. Test dollars don&apos;t earn, so switch to Mainnet to use it.
-        </p>
         <button className={`${btnGhost} mt-3 w-full`} onClick={askForMainnet}>
-          Switch to Mainnet
+          Switch to Mainnet to earn
         </button>
       </section>
     );
@@ -1626,27 +1568,18 @@ function TempoEarnCard({ ctx }: { ctx: Loaded }) {
       {header}
       {!active && queuedFor === 0 && (
         <>
-          <p className="mt-1 text-sm text-muted">
-            Put your pathUSD to work in Morpho&apos;s Sentora pathUSD vault. Turning it on waits your{" "}
-            {waitText(s.timelock)} waiting period once, like any rule change, so a thief can&apos;t rush it. Your
-            guardians can cancel it.
-          </p>
           <button
             className={`${btn} mt-3`}
             disabled={!!busy || s.frozen || !earn}
             onClick={() => actions.turnOnEarning().then((h) => h && notify(`Earning turns on in ${waitText(s.timelock)}.`))}
           >
-            Turn on earning
+            Turn on earning (takes {waitText(s.timelock)})
           </button>
         </>
       )}
       {!active && queuedFor > 0 && (
         <>
-          <p className="mt-1 text-sm text-muted">
-            {ready
-              ? "The wait is over. One more tap and your pathUSD can start earning."
-              : `Earning turns on in ${timeLeft(queuedFor - now)}. Your guardians can cancel it until then.`}
-          </p>
+          {!ready && <p className="mt-1 text-sm text-muted">Turns on in {timeLeft(queuedFor - now)}</p>}
           {ready && (
             <button
               className={`${btn} mt-3`}
@@ -1662,7 +1595,7 @@ function TempoEarnCard({ ctx }: { ctx: Loaded }) {
         <>
           <p className="mt-1 text-3xl font-semibold">{usd(earn?.earning ?? 0n, d)}</p>
           <p className="text-sm text-muted">
-            earning · {usd(path.available, d)} pathUSD in your main account, not earning
+            earning · {usd(path.available, d)} not earning
             {s.frozen && <span className="text-danger"> · frozen</span>}
           </p>
           <div className="mt-3 flex gap-2">
@@ -1697,15 +1630,11 @@ function TempoEarnCard({ ctx }: { ctx: Loaded }) {
               disabled={!!busy}
               onClick={() => actions.stopEarning().then((h) => h && notify("Stopped earning. The money is back in your main account."))}
             >
-              Stop earning (back to your main account)
+              Stop earning
             </button>
           )}
         </>
       )}
-      <p className="mt-2 text-xs text-muted">
-        Rates change. Earning money stays in your vault, behind the same limits and guardians. Keep a little pathUSD
-        out for network fees.
-      </p>
     </section>
   );
 }
@@ -1719,7 +1648,6 @@ function LimitPicker({ value, onChange }: { value: string; onChange: (v: string)
   return (
     <fieldset className="mt-4">
       <legend className="text-sm font-medium">Daily instant limit</legend>
-      <p className="text-xs text-muted">The most that can leave in a day without waiting. Lower is safer; $0 means every send waits.</p>
       <div className="mt-2 grid grid-cols-4 gap-2">
         {LIMIT_PRESETS.map((v) => (
           <Choice
@@ -1768,14 +1696,13 @@ function LimitPicker({ value, onChange }: { value: string; onChange: (v: string)
 
 /**
  * A guardian only helps if a thief who steals your key or seed phrase can't control it too. Nothing
- * on-chain can tell that two addresses come from the same seed, so say it plainly where guardians are added.
+ * on-chain can tell that two addresses come from the same seed, so say it briefly where guardians are added
+ * (the full reason is in the vault's "What this pot depends on" notes, lib/potInfo.ts).
  */
 function GuardianIndependenceNote() {
   return (
     <p className="mt-2 text-xs text-muted">
-      Pick a different person, or a device with its own seed phrase. Another account from your own seed phrase or login
-      won&apos;t protect you: a thief with your phrase controls it too.
-      {STASH_GUARDIAN && " The Stash guardian is always independent of your key."}
+      Pick another person or a device with its own seed phrase, never your own.
     </p>
   );
 }

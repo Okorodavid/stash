@@ -113,12 +113,11 @@ export default function DepositFromWallet({ ctx }: { ctx: Loaded }) {
           {balance === 0n &&
             (HAS_TEST_FAUCET ? (
               <button className={`${textLink} text-xs`} disabled={funding} onClick={testDollars}>
-                {funding ? "Getting test dollars…" : "Testnet: get free test dollars for this wallet"}
+                {funding ? "Getting test dollars…" : "Get free test dollars"}
               </button>
             ) : (
               <p className="mt-2 text-xs text-muted">
-                This wallet has no {token.symbol} on {net.chain.name} yet. Move dollars to {net.chain.name} first, for example with
-                relay.link. The wallet also needs {HOME_CHAIN === "base" ? "a little ETH" : `a few cents of a ${net.chain.name} stablecoin`} for the fee.
+                No {token.symbol} on {net.chain.name}. It also needs {HOME_CHAIN === "base" ? "a little ETH" : `a few cents of a ${net.chain.name} stablecoin`} for fees.
               </p>
             ))}
           {ext.busy && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.accent}`}>{ext.busy}…</p>}

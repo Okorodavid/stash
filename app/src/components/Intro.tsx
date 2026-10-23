@@ -14,21 +14,10 @@ export default function Intro({
       {guardian ? (
         <>
           <h1 className="text-3xl font-semibold leading-tight">Someone trusts you to guard their savings.</h1>
-          <ul className="space-y-2 text-muted">
-            <li>• You can stop a withdrawal they didn&apos;t make, or freeze their vault.</li>
-            <li>• You can never move or take their money.</li>
-            <li>• Sign in with the account they added as a guardian.</li>
-          </ul>
+          <p className="text-muted">Sign in with the account they added as a guardian.</p>
         </>
       ) : (
-        <>
-          <h1 className="text-3xl font-semibold leading-tight">Save and gain interest. A stolen key or seed phrase can&apos;t drain you.</h1>
-          <ul className="space-y-2 text-muted">
-            <li>• Small amounts move instantly, up to your daily limit.</li>
-            <li>• Big withdrawals wait 24 hours or longer (you choose), and your guardians can stop them.</li>
-            <li>• Lock savings toward a goal and earn on them.</li>
-          </ul>
-        </>
+        <h1 className="text-3xl font-semibold leading-tight">Save and gain interest. A stolen key or seed phrase can&apos;t drain you.</h1>
       )}
       <button
         onClick={onStart}

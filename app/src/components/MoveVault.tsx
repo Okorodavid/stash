@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getAddress, isAddress, type Address } from "viem";
 import { useNow } from "@/lib/useNow";
-import { btn, btnGhost, card, cardTitle, input, short, timeLeft, tint, type Loaded, waitText } from "./ui";
+import { btn, btnGhost, card, cardTitle, input, short, timeLeft, tint, type Loaded } from "./ui";
 
 const same = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
@@ -23,10 +23,7 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
     return (
       <section className={card}>
         {title}
-        <p className="mt-1 text-sm text-muted">
-          This vault was created before moving was available. If your recovery key leaks, a guardian can still freeze it so
-          nothing leaves.
-        </p>
+        <p className="mt-1 text-sm text-muted">Not available for this vault. A guardian can still freeze it.</p>
       </section>
     );
   }
@@ -40,10 +37,7 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
           Moving to <span className="font-mono">{short(m.pendingOwner!)}</span>.{" "}
           {ready ? "The wait is over." : now > 0 ? `Happens in ${timeLeft(m.pendingOwnerAt - now)}.` : ""}
         </p>
-        <p className="mt-1 text-xs text-muted">
-          Any guardian can still cancel it. After the move, sign in with the new login to see this vault; this login will
-          no longer control it.
-        </p>
+        <p className="mt-1 text-xs text-muted">After the move, only the new login controls this vault.</p>
         {ready && (
           <button className={`${btn} mt-3`} disabled={!!busy} onClick={() => actions.applyOwnerChange()}>
             Complete the move
@@ -60,16 +54,10 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
   return (
     <section className={card}>
       {title}
-      <p className="mt-1 text-sm text-muted">
-        Use this if your recovery key may have leaked, or you want this vault under a different account. One of your
-        guardians has to agree, then it waits {waitText(s.timelock)}. Your limits and guardians protect your money the
-        whole time.
-      </p>
 
       {m.ownerNominee && (
         <p className={`mt-3 rounded-lg px-3 py-2 text-sm ${tint.warn}`}>
-          You asked to move to <span className="font-mono">{short(m.ownerNominee)}</span>. Waiting for a guardian to
-          confirm the same address from their guardian page.
+          Moving to <span className="font-mono">{short(m.ownerNominee)}</span>: waiting for a guardian to confirm.
         </p>
       )}
 
@@ -79,20 +67,15 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
             Guardian <span className="font-mono">{short(g.guardian)}</span> proposed moving your vault to{" "}
             <span className="font-mono">{short(g.nominee)}</span>.
           </p>
-          <p className="mt-1 text-xs">Only agree if that is your own new login. If you don&apos;t recognise it, ignore it.</p>
+          <p className="mt-1 text-xs">Don&apos;t recognise it? Ignore it.</p>
           <button className={`${btnGhost} mt-2 bg-card`} disabled={!!busy} onClick={() => actions.nominateOwner(g.nominee)}>
             That&apos;s my new login: agree
           </button>
         </div>
       ))}
 
-      <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">
-        <li>Open Stash in a private window and sign up with a new email.</li>
-        <li>Copy that account&apos;s address (bottom of the page) and paste it below.</li>
-        <li>Call one of your guardians and ask them to confirm the same address. Don&apos;t rely on a text message alone.</li>
-      </ol>
       <label htmlFor="move-to" className="mt-3 block text-sm text-muted">
-        New login&apos;s address
+        New login&apos;s address (sign up in a private window)
       </label>
       <input
         id="move-to"
@@ -110,6 +93,7 @@ export default function MoveVaultCard({ ctx }: { ctx: Loaded }) {
       >
         Request the move
       </button>
+      <p className="mt-1 text-xs text-muted">Then call a guardian to confirm it. Not by text alone.</p>
     </section>
   );
 }

@@ -38,7 +38,7 @@ export default function DrainSim({ vault }: { vault?: Address }) {
   if (target === null) {
     return (
       <p className="text-muted">
-        There&apos;s no demo vault on {net.chain.name} yet. Open the drain test from your Stash dashboard to try it on your own vault.
+        No demo vault on {net.chain.name}. Run it from your dashboard.
       </p>
     );
   }
@@ -99,19 +99,19 @@ function DrainSimFor({ vault }: { vault: Address }) {
       <section className="space-y-2">
         <h1 className="text-3xl font-semibold leading-tight">What if someone stole the key?</h1>
         <p className="text-muted">
-          A thief has the owner key for vault <span className="font-mono">{short(vault)}</span>, holding{" "}
-          <span className="font-medium text-foreground">{usd(snap.balance, d)}</span>. Watch what they can and can&apos;t
-          do. Every step runs against the real contract on {net.chain.name}, but nothing is sent and no money moves.
+          Vault <span className="font-mono">{short(vault)}</span> ·{" "}
+          <span className="font-medium text-foreground">{usd(snap.balance, d)}</span> · simulated on {net.chain.name}, nothing
+          is sent
         </p>
       </section>
 
       {snap.balance === 0n && (
         <p className="rounded-xl bg-warn/10 px-3 py-2 text-sm text-warn-ink">
-          This vault is empty, so there&apos;s nothing to steal. Save a few dollars first to see the full attack.
+          This vault is empty: nothing to steal.
         </p>
       )}
       {snap.frozen && (
-        <p className="rounded-xl bg-accent/10 px-3 py-2 text-sm">This vault is already frozen. The thief starts out blocked.</p>
+        <p className="rounded-xl bg-accent/10 px-3 py-2 text-sm">Already frozen: the thief starts blocked.</p>
       )}
 
       <div className="grid grid-cols-2 gap-2">
@@ -201,16 +201,13 @@ function Summary({ snap, result, respond }: { snap: VaultSnapshot; result: SimRe
       <div className="space-y-2 text-sm">
         <Bar label="Stash vault" lostPct={pctLost} />
         <Bar label="Ordinary wallet" lostPct={snap.balance > 0n ? 100 : 0} />
-        <p className="text-muted">
-          With an ordinary wallet, the same stolen key moves all {usd(snap.balance, d)} in one transaction.
-        </p>
       </div>
 
-      <p className="text-sm">
-        {respond
-          ? "The thief only got what the daily instant limit allows. Everything bigger had to wait in the open, and one guardian stopped it."
-          : `Nobody acted during the ${Math.round(snap.timelock / 3600)}-hour wait, so the queued withdrawal went through. That's why every vault starts with the Stash guardian, and why you and your guardians should turn on Telegram alerts. You can cancel too: the thief has a copy of your key, not your account.`}
-      </p>
+      {!respond && (
+        <p className="text-sm">
+          Nobody acted during the {Math.round(snap.timelock / 3600)}-hour wait. Turn on Telegram alerts.
+        </p>
+      )}
     </section>
   );
 }

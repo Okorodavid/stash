@@ -9,6 +9,10 @@ export type Dependency = { name: string; role: string; url?: string };
 const REPO = process.env.NEXT_PUBLIC_REPO_URL || undefined;
 export type PotInfo = { dependsOn: Dependency[]; notes: string[] };
 
+// The long form of the short note shown where guardians are added.
+const GUARDIAN_NOTE =
+  "A guardian from your own seed phrase or login doesn't protect you: a thief with your phrase controls it too. The Stash guardian is always independent of your key.";
+
 export const POT_INFO: Record<"vault" | "save" | "growth", PotInfo> = {
   vault: {
     dependsOn: [
@@ -31,11 +35,17 @@ export const POT_INFO: Record<"vault" | "save" | "growth", PotInfo> = {
     ],
     notes:
       HOME_CHAIN === "base"
-        ? ["No yield protocol: this money isn't lent out, so a DeFi hack elsewhere can't touch it."]
+        ? [
+            "No yield protocol: this money isn't lent out, so a DeFi hack elsewhere can't touch it.",
+            "Network fees on Base are paid in ETH, so your wallet needs a little ETH.",
+            GUARDIAN_NOTE,
+          ]
         : [
             "Only the money you choose to put to work is lent out through Morpho. The rest isn't lent out at all.",
             "Your vault protects against thieves, not against the lending protocol itself failing.",
             "Earning on Tempo runs on mainnet only: Tempo's testnet has no Morpho vaults.",
+            "Network fees on Tempo are paid in pathUSD (a fraction of a cent), so keep a little out of earning.",
+            GUARDIAN_NOTE,
           ],
   },
   save: {

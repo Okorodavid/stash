@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { parseUnits } from "viem";
 import { useConnectWallet, useWallets } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
-import { GROWTH_DEPOSIT_CAP_USD, TRANCHE } from "@/lib/growth";
+import { GROWTH_DEPOSIT_CAP_USD } from "@/lib/growth";
 import { useGrowthPot } from "@/lib/useGrowthPot";
 import { MODE, askForMainnet } from "@/lib/config";
 import PotInfo from "./PotInfo";
@@ -78,15 +78,10 @@ export default function GrowthPotCard({
   const [solError, setSolError] = useState<string | null>(null);
 
   const header = (
-    <>
-      <div className="flex items-baseline justify-between">
-        <h3 className={cardTitle}>Growth pot</h3>
-        <span className="text-xs text-muted">Solana · real money · beta</span>
-      </div>
-      <p className="text-sm text-muted">
-        {TRANCHE.name} via Reflect. Yours is the protected share: if the strategy loses money, other investors take the first losses in return for extra yield.
-      </p>
-    </>
+    <div className="flex items-baseline justify-between">
+      <h3 className={cardTitle}>Growth pot</h3>
+      <span className="text-xs text-muted">Solana · real money · beta</span>
+    </div>
   );
 
   if (preview || testnet) {
@@ -96,18 +91,13 @@ export default function GrowthPotCard({
         <p className="mt-2 text-3xl font-semibold">$0.00</p>
         <p className="text-sm text-muted">
           {apyBps !== null && apyBps !== undefined
-            ? `Earning about ${(apyBps / 100).toFixed(1)}% a year right now (rate changes).`
-            : "Loading the current rate…"}
+            ? `~${(apyBps / 100).toFixed(1)}% a year`
+            : "Loading rate…"}
         </p>
         {testnet ? (
-          <>
-            <p className={`mt-3 rounded-lg px-3 py-2 text-xs ${tint.warn}`}>
-              Growth only runs with real money on Solana: there&apos;s no test version.
-            </p>
-            <button className={`${btnGhost} mt-2 w-full`} onClick={askForMainnet}>
-              Switch to mainnet to use Growth
-            </button>
-          </>
+          <button className={`${btnGhost} mt-3 w-full`} onClick={askForMainnet}>
+            Switch to mainnet to use Growth
+          </button>
         ) : (
           <div className="mt-3 flex gap-2">
             <input className={input} inputMode="decimal" placeholder="$ amount" aria-label="Amount to grow, in dollars" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
@@ -116,9 +106,7 @@ export default function GrowthPotCard({
             </button>
           </div>
         )}
-        <p className="mt-3 text-xs text-muted">
-          Growth keeps at most half your savings by default, and this pot doesn&apos;t have daily limits or guardians yet.
-        </p>
+        <p className="mt-3 text-xs text-muted">No daily limit or guardians. Keep amounts small.</p>
         <PotInfo pot="growth" />
       </section>
     );
@@ -132,7 +120,6 @@ export default function GrowthPotCard({
           <p className="mt-2 text-sm text-muted">Setting up your Solana wallet…</p>
         ) : (
           <>
-            <p className="mt-2 text-sm text-muted">Growth runs on Solana. Create a Stash Solana wallet, or use one you already have.</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <button
                 className={`${btn} sm:flex-1`}
@@ -180,7 +167,7 @@ export default function GrowthPotCard({
             {state.valueUsd.toLocaleString(undefined, { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol" })}
           </p>
           <p className="text-sm text-muted">
-            Earning about {(state.apyBps / 100).toFixed(1)}% a year right now (rate changes) · wallet {usd(state.usdc, 6)} USDC
+            ~{(state.apyBps / 100).toFixed(1)}% a year · wallet {usd(state.usdc, 6)} USDC
           </p>
         </>
       ) : (
@@ -188,11 +175,11 @@ export default function GrowthPotCard({
       )}
 
       <button className={`${textLink} text-xs`} onClick={copy}>
-        <span aria-live="polite">{copied ? "Solana address copied" : `Your Solana address: ${short(address)} · copy`}</span>
+        <span aria-live="polite">{copied ? "Solana address copied" : `Solana ${short(address)} · copy`}</span>
       </button>
       {lowSol && (
         <p className={`mt-2 rounded-lg px-3 py-2 text-xs ${tint.warn}`}>
-          Send about 0.01 SOL to this address to pay Solana network fees, plus the USDC you want to grow.
+          Send about 0.01 SOL here for fees, plus USDC to grow.
         </p>
       )}
       {busy && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.accent}`}>{busy}…</p>}
@@ -201,7 +188,6 @@ export default function GrowthPotCard({
       {state && state.strandedBase > 0n && (
         <div className="mt-3 rounded-xl border border-warn p-3 text-sm">
           <p className="font-semibold">A move into Growth stopped halfway.</p>
-          <p className="mt-1 text-muted">Part of it is sitting in the middle step (a Hylo dollar token) without the protected share yet. Finish it, or turn it back into dollars.</p>
           <div className="mt-2 flex gap-2">
             <button className={btnGhost} disabled={!!busy || lowSol} onClick={() => actions.finishIntoGrowth()}>
               Finish into Growth
@@ -230,11 +216,10 @@ export default function GrowthPotCard({
           Grow
         </button>
       </div>
-      {overCap && <p className="mt-1 text-xs text-warn-ink">Beta limit: ${GROWTH_DEPOSIT_CAP_USD} per deposit while we&apos;re unaudited.</p>}
+      {overCap && <p className="mt-1 text-xs text-warn-ink">Beta limit: ${GROWTH_DEPOSIT_CAP_USD} per deposit.</p>}
       {overShare && (
         <p className="mt-1 text-xs text-warn-ink">
-          That would put more than {Math.round(limit * 100)}% of your savings in Growth. You can add up to $
-          {maxDeposit.toFixed(2)} right now.
+          Over your {Math.round(limit * 100)}% limit. Max ${maxDeposit.toFixed(2)}.
         </p>
       )}
 
@@ -252,11 +237,7 @@ export default function GrowthPotCard({
             <option value={1}>No limit</option>
           </select>
         </p>
-        <p className="mt-1 text-xs text-muted">
-          {limit === 0.5
-            ? "Keeping at least half your savings outside Growth means one protocol problem can't wipe you out."
-            : "Higher risk: if Reflect, Hylo or Solana DeFi has a serious problem, you could lose a large part of your savings. Only raise this if you can afford that."}
-        </p>
+        {limit !== 0.5 && <p className="mt-1 text-xs text-warn-ink">Higher risk: you could lose much of your savings.</p>}
       </div>
 
       {state && state.protectedTokens > 0n && (
@@ -265,9 +246,7 @@ export default function GrowthPotCard({
         </button>
       )}
 
-      <p className="mt-3 text-xs text-muted">
-        Unlike your vault, this pot doesn&apos;t have daily limits or guardians yet. Keep amounts small during the beta.
-      </p>
+      <p className="mt-3 text-xs text-muted">No daily limit or guardians. Keep amounts small.</p>
       <PotInfo pot="growth" />
     </section>
   );
