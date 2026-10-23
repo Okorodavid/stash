@@ -14,7 +14,7 @@ export default async function GuardianPage({ searchParams }: PageProps<"/guardia
       {valid ? (
         <LazyApp guardianOf={getAddress(vault)} />
       ) : (
-        <p className="text-muted">This guardian link is missing a vault address. Ask the owner to share it again.</p>
+        <p className="text-muted">This link has no vault address. Ask the owner for a new one.</p>
       )}
     </main>
   );

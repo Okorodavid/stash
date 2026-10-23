@@ -81,7 +81,7 @@ export default function DepositFromWallet({ ctx }: { ctx: Loaded }) {
         <>
           <p className="mt-3 text-sm">
             <span className="font-mono">{short(ext.account)}</span> ·{" "}
-            {balance === null ? "…" : `${usd(balance, token.decimals)} ${token.symbol}`} on {net.chain.name}{" "}
+            {balance === null ? "…" : `${usd(balance, token.decimals)} ${token.symbol}`}{" "}
             <button className={`${textLink} ml-1 text-xs`} onClick={() => ext.wallet?.disconnect()}>
               Disconnect
             </button>
@@ -96,15 +96,15 @@ export default function DepositFromWallet({ ctx }: { ctx: Loaded }) {
           {overCap && <p className="mt-1 text-xs text-warn-ink">That&apos;s over your vault&apos;s beta limit.</p>}
           {balance === 0n && (
             <p className="mt-2 text-xs text-muted">
-              This wallet has no {token.symbol} on {net.chain.name} yet.{" "}
+              No {token.symbol} on {net.chain.name} here.{" "}
               {net.chain.testnet ? (
                 <a className="underline underline-offset-2" href="https://faucet.circle.com" target="_blank" rel="noreferrer">
-                  Get free test USDC.
+                  Get test USDC.
                 </a>
               ) : (
-                <>Bridge USDC to {net.chain.name} first.</>
+                <>Bridge some first.</>
               )}{" "}
-              On {net.chain.name}, USDC also pays the network fee, so keep a few cents in the wallet.
+              Keep a few cents for fees.
             </p>
           )}
           {ext.busy && <p role="status" className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.accent}`}>{ext.busy}…</p>}

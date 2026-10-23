@@ -29,7 +29,8 @@ export const POT_INFO: Record<"vault" | "earn", PotInfo> = {
     ],
     notes: [
       "Your vault protects against thieves, not against the lending protocol itself failing.",
-      "The rate floats with borrowing demand. Taking money out depends on the vault having idle liquidity.",
+      "The rate shown is after fees and floats with borrowing demand. Taking money out depends on the vault having idle liquidity.",
+      "On testnet this is a 0% stand-in vault; on mainnet it is Galaxy USDC.",
     ],
   },
 };

@@ -42,19 +42,18 @@ function Guardian({ vault }: { vault: Address }) {
         </h1>
         <p className="mt-1 text-3xl font-semibold tracking-tight">{dollars(state.totalUsd)}</p>
         <p className="mt-1 text-sm">
-          {state.frozen ? <span className="font-medium text-danger">Frozen: nothing can leave.</span> : "Active: nothing unusual unless shown below."}
+          {state.frozen ? <span className="font-medium text-danger">Frozen: nothing can leave.</span> : "Active"}
         </p>
         {!isGuardian && (
           <p className={`mt-2 rounded-lg px-3 py-2 text-sm ${tint.warn}`}>
-            Your account ({account ? short(account) : "…"}) is not a guardian of this vault, so these buttons won&apos;t work.
-            Ask the owner to add this address.
+            {account ? short(account) : "…"} isn&apos;t a guardian here. Ask the owner to add it.
           </p>
         )}
       </section>
 
       <section className={card}>
         <h2 className={`${cardTitle} mb-2`}>Waiting withdrawals</h2>
-        {state.pending.length === 0 && <p className="text-sm text-muted">Nothing waiting. All quiet.</p>}
+        {state.pending.length === 0 && <p className="text-sm text-muted">Nothing waiting</p>}
         <ul className="space-y-3">
           {state.pending.map((p) => {
             const ready = now > 0 && now >= p.unlockAt;
@@ -73,9 +72,9 @@ function Guardian({ vault }: { vault: Address }) {
                     </p>
                     <p className="mt-1 font-semibold text-warn-ink">
                       {ready
-                        ? "The wait is over: it can be released now"
+                        ? "Wait over: can be released now"
                         : now > 0
-                          ? `Goes through in ${timeLeft(p.unlockAt - now)} · you can stop it until ${when(p.unlockAt, now)}`
+                          ? `Goes through in ${timeLeft(p.unlockAt - now)}`
                           : "…"}
                     </p>
                   </div>
@@ -98,7 +97,7 @@ function Guardian({ vault }: { vault: Address }) {
                       disabled={!!busy}
                       onClick={() => actions.approveWithdrawal(p.id).then((h) => h && notify("Marked as reviewed. The wait still runs in full."))}
                     >
-                      Looks fine
+                      Mark reviewed
                     </button>
                   )}
                 </div>
@@ -106,9 +105,6 @@ function Guardian({ vault }: { vault: Address }) {
             );
           })}
         </ul>
-        <p className="mt-2 text-xs text-muted">
-          &quot;Looks fine&quot; only marks it as reviewed; it never speeds the wait up. If you don&apos;t recognise a withdrawal, stop it.
-        </p>
       </section>
 
       {state.pendingPolicy && (
@@ -119,7 +115,7 @@ function Guardian({ vault }: { vault: Address }) {
             {waitText(state.timelock)} to {waitText(state.pendingPolicy.timelock)}. Takes effect{" "}
             {when(state.pendingPolicy.effectiveAt, now || undefined)}.
           </p>
-          <p className="mt-1 text-xs text-muted">If the owner didn&apos;t tell you about this, block it: a thief may be loosening the rules first.</p>
+          <p className="mt-1 text-xs text-muted">Owner didn&apos;t mention it? Block it.</p>
           <button
             className={`${btnGhost} mt-2 w-full text-danger-ink`}
             disabled={!!busy}
@@ -154,7 +150,7 @@ function Guardian({ vault }: { vault: Address }) {
                 <span>
                   <span className="font-mono">{short(g.address)}</span>
                   {isMe && " (you)"}
-                  {isNew && <span className="text-warn-ink"> · new, can help unfreeze from {when(g.establishedAt, now || undefined)}</span>}
+                  {isNew && <span className="text-warn-ink"> · new until {when(g.establishedAt, now || undefined)}</span>}
                   {g.removalAt > 0 && <span className="text-warn-ink"> · removal requested</span>}
                 </span>
                 <span className="flex gap-2">
@@ -174,9 +170,7 @@ function Guardian({ vault }: { vault: Address }) {
           })}
         </ul>
         {newGuardians.length > 0 && (
-          <p className="mt-2 text-xs text-muted">
-            If you didn&apos;t expect a new guardian, remove it: someone with the owner&apos;s key may be trying to plant one.
-          </p>
+          <p className="mt-2 text-xs text-muted">Unexpected new guardian? Remove it.</p>
         )}
       </section>
 
@@ -185,13 +179,11 @@ function Guardian({ vault }: { vault: Address }) {
           <h2 className={cardTitle}>Vault is frozen</h2>
           {state.unfreezeApprovedBy ? (
             <p className="mt-1 text-sm text-muted">
-              Unfreeze approved by {short(state.unfreezeApprovedBy)}. The owner can now unfreeze from their app.
+              Unfreeze approved by {short(state.unfreezeApprovedBy)}. The owner can unfreeze now.
             </p>
           ) : (
             <>
-              <p className="mt-1 text-sm text-muted">
-                Only approve once you&apos;ve talked to the owner and you&apos;re sure their account is safe again.
-              </p>
+              <p className="mt-1 text-sm text-muted">Only approve once the owner&apos;s account is safe.</p>
               <button
                 className={`${btn} mt-2`}
                 disabled={!!busy || !iAmEstablished}
@@ -199,7 +191,7 @@ function Guardian({ vault }: { vault: Address }) {
               >
                 Approve unfreeze
               </button>
-              {isGuardian && !iAmEstablished && <p className="mt-1 text-xs text-muted">You were added recently, so you can&apos;t approve unfreezing yet.</p>}
+              {isGuardian && !iAmEstablished && <p className="mt-1 text-xs text-muted">Too new to approve yet.</p>}
             </>
           )}
         </section>
@@ -217,7 +209,7 @@ function Guardian({ vault }: { vault: Address }) {
 
       <footer className="flex items-center justify-between gap-3 pt-2 text-xs text-muted">
         <span>
-          Instant limit {money(state.dailyLimitUsd)}/day · {money(state.largeThresholdUsd)} or more always waits {waitText(state.timelock)} · owner{" "}
+          {money(state.dailyLimitUsd)}/day instant · {money(state.largeThresholdUsd)}+ waits {waitText(state.timelock)} · owner{" "}
           <span className="font-mono">{short(state.owner)}</span>
         </span>
         <button className={`${textLink} shrink-0`} onClick={logout}>
@@ -268,7 +260,7 @@ function OwnerMoveSection({
           New owner <span className="font-mono">{short(move.pendingOwner!)}</span>.{" "}
           {ready ? "The wait is over." : now > 0 ? `Happens in ${timeLeft(move.pendingOwnerAt - now)}.` : ""}
         </p>
-        <p className="mt-1 text-xs text-muted">If the owner didn&apos;t ask for this, stop it. The owner&apos;s key can&apos;t.</p>
+        <p className="mt-1 text-xs text-muted">Owner didn&apos;t ask for this? Stop it. Only guardians can.</p>
         <div className="mt-2 flex gap-2">
           <button className={`${btnGhost} text-danger-ink`} disabled={busy || !iAmEstablished} onClick={() => actions.cancelOwnerChange()}>
             Stop the move
@@ -291,9 +283,7 @@ function OwnerMoveSection({
           <p>
             The owner asked to move this vault to <span className="font-mono">{short(move.ownerNominee)}</span>.
           </p>
-          <p className="mt-1 text-xs">
-            Call the owner and check the address with them first. Someone with a stolen key could ask for this too.
-          </p>
+          <p className="mt-1 text-xs">Call the owner to check it first. A thief could ask too.</p>
           <button
             className={`${btnGhost} mt-2 bg-card`}
             disabled={busy || !iAmEstablished}
@@ -304,12 +294,11 @@ function OwnerMoveSection({
         </div>
       )}
       <p className="mt-2 text-sm text-muted">
-        If the owner&apos;s recovery key leaked, help them move the vault to a new login. {frozen ? "" : "Freeze the vault first. "}
-        Get their new address from them directly, enter it here, then they confirm it from their old login.
+        {frozen ? "" : "Freeze the vault first. "}Get the new address from the owner directly.
       </p>
       {mine && (
         <p className="mt-2 text-sm">
-          You named <span className="font-mono">{short(mine)}</span>. Waiting for the owner to confirm it.
+          You named <span className="font-mono">{short(mine)}</span>. Waiting for the owner.
         </p>
       )}
       <label htmlFor={inputId} className="mt-2 block text-sm text-muted">
@@ -330,7 +319,7 @@ function OwnerMoveSection({
       >
         Name the new owner
       </button>
-      {!iAmEstablished && <p className="mt-1 text-xs text-muted">You were added recently, so you can&apos;t do this yet.</p>}
+      {!iAmEstablished && <p className="mt-1 text-xs text-muted">Too new to do this yet.</p>}
     </section>
   );
 }

@@ -91,12 +91,7 @@ function Gate({ guardianOf }: { guardianOf?: Address }) {
 function PreviewBanner({ onSignUp }: { onSignUp: () => void }) {
   return (
     <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="font-semibold">Dollar savings on Arc that a stolen key or seed phrase can&apos;t drain.</p>
-        <p className="text-sm text-muted">
-          Sign up with email or Google to start saving.
-        </p>
-      </div>
+      <p className="font-semibold">USDC savings a stolen key can&apos;t drain.</p>
       <button className={`${btn} sm:w-auto sm:shrink-0 sm:px-5`} onClick={onSignUp}>
         Sign up
       </button>

@@ -66,17 +66,12 @@ export default function NetworkSwitch() {
         {pill("testnet", "Testnet", "bg-accent/15 text-accent-ink")}
         {pill("mainnet", "Mainnet", "bg-warn/20 text-warn-ink")}
       </span>
-      <span className="text-xs text-muted">
-        {mode === "mainnet" ? "Arc · real USDC · unaudited" : "Arc testnet · free test USDC"}
-      </span>
+      {mode === "mainnet" && <span className="text-xs text-warn-ink">Real USDC · unaudited</span>}
       {asking && (
       <Modal label="Switch to mainnet" onClose={() => setAsking(false)}>
           <div className="rounded-2xl border border-warn/40 bg-card p-5 text-left shadow-xl">
             <h2 className="text-lg font-semibold">Switch to mainnet?</h2>
-            <p className="mt-2 text-sm text-muted">
-              Mainnet uses real USDC. Stash is unaudited beta software, so keep amounts small: each vault holds at most
-              $5,000 for now.
-            </p>
+            <p className="mt-2 text-sm text-muted">Real USDC. Unaudited beta: max $5,000 per vault.</p>
             {/* The safe choice comes first, so the dialog opens with focus on it. */}
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <button className={`${btnGhost} sm:flex-1`} onClick={() => setAsking(false)}>

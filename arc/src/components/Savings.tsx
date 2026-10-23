@@ -59,12 +59,8 @@ export function GoalsCard({ ctx }: { ctx: Loaded }) {
           </button>
         )}
       </div>
-      <p className="mb-2 text-sm text-muted">Lock money until a date. Unlocking early costs a small fee.</p>
-
-      {state.goals.length === 0 && !creating && (
-        <p className="text-sm">Saving for rent, school fees or a trip? Make it a goal and the money stays put until the date you pick.</p>
-      )}
-      <ul className="space-y-3">
+      {state.goals.length === 0 && !creating && <p className="mt-2 text-sm text-muted">No goals yet</p>}
+      <ul className="mt-2 space-y-3">
         {state.goals.map((g) => (
           <GoalRow key={g.id} goal={g} ctx={ctx} />
         ))}
@@ -87,7 +83,7 @@ export function GoalsCard({ ctx }: { ctx: Loaded }) {
             />
           </label>
           <label className="block text-sm text-muted">
-            Fee if you unlock early
+            Early-unlock fee
             <select className={`${input} mt-1`} value={feeBps} onChange={(e) => setFeeBps(Number(e.target.value))}>
               <option value={0}>No fee</option>
               <option value={200}>2%</option>
@@ -163,8 +159,7 @@ function GoalRow({ goal, ctx }: { goal: Goal; ctx: Loaded }) {
       {/* In-page confirm: browser pop-ups are blocked in many in-app browsers. */}
       {confirming && (
         <div className={`mt-2 rounded-lg p-3 ${tint.warn}`} role="group" aria-label="Confirm early unlock">
-          <p>Unlocking early costs {usd(fee, token.decimals)}. The rest goes back to your vault.</p>
-          <div className="mt-2 flex gap-2">
+          <div className="flex gap-2">
             <button
               className={btnDanger}
               disabled={!!busy}
