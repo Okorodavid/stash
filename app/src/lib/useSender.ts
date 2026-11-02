@@ -2,9 +2,22 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
-import { createWalletClient, custom, encodeFunctionData, type Address, type Chain, type Hash } from "viem";
+import { concat, createWalletClient, custom, encodeFunctionData, stringToHex, toHex, type Address, type Chain, type Hash } from "viem";
+import { base } from "viem/chains";
 import { clientFor, type Call, type RawTx } from "./chain";
 import { HOME, NETWORKS, type NetworkKey } from "./config";
+
+/**
+ * Base Builder Code, appended to our own contract calls on Base mainnet so Base credits Stash for them
+ * (ERC-8021, schema 0: code, code length, schema id, marker). Trailing bytes are ignored by the callee.
+ */
+const BUILDER_CODE = "bc_426t7fkd";
+const BUILDER_SUFFIX = concat([
+  stringToHex(BUILDER_CODE),
+  toHex(BUILDER_CODE.length, { size: 1 }),
+  "0x00",
+  "0x80218021802180218021802180218021",
+]);
 
 type Provider = Awaited<ReturnType<ConnectedWallet["getEthereumProvider"]>>;
 
@@ -87,7 +100,8 @@ export function useSender(pick?: (wallets: ConnectedWallet[]) => ConnectedWallet
           const to = raw ? call.to : call.address;
           const value = raw ? call.value : undefined;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const data = raw ? call.data : encodeFunctionData(call as any);
+          const encoded = raw ? call.data : encodeFunctionData(call as any);
+          const data = !raw && chain.id === base.id ? concat([encoded, BUILDER_SUFFIX]) : encoded;
           // Tempo's estimate undercounts its expensive new-storage writes (250k gas per slot),
           // so pad it; otherwise e.g. createVault runs out of gas.
           const estimate = await publicClient.estimateGas({ account, to, data, value });
