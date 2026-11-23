@@ -13,6 +13,8 @@ const say =
   "relative z-2 md:max-w-[min(54%,36rem)] md:[text-shadow:0_0_14px_var(--background),0_0_36px_var(--background),0_0_60px_var(--background)]";
 const h2 = "text-[clamp(1.75rem,4.2vw,3.25rem)] font-semibold leading-[1.12] tracking-tight text-balance";
 
+export const TAGLINE = "Savings a stolen key can't drain.";
+
 const PROMISES: [Sign, string][] = [
   ["limit", "You set a daily limit. Nobody takes out more, even with your key."],
   ["wait", "Bigger withdrawals wait. A guardian gets a Telegram alert and can cancel."],
@@ -48,9 +50,13 @@ export default function Landing() {
     <div data-theme="dark" className="relative flex-1 bg-background text-foreground">
       <script dangerouslySetInnerHTML={{ __html: forward }} />
       <header className="fixed inset-x-0 top-0 z-20 flex items-center justify-between gap-4 bg-background/80 px-4 py-3 backdrop-blur-md md:px-10">
-        <Link href="/" aria-label="Stash home">
-          <Logo />
-        </Link>
+        <span className="flex items-center gap-3">
+          <Link href="/" aria-label="Stash home">
+            <Logo />
+          </Link>
+          {/* Phones have no room for it beside the buttons; there it lives in the page title. */}
+          <span className="hidden text-sm text-muted lg:inline">{TAGLINE}</span>
+        </span>
         <nav className="flex items-center gap-3 text-[0.9375rem] md:gap-6">
           {drain && (
             <Link href="/drain" className="text-muted transition-colors hover:text-foreground">
