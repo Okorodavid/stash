@@ -66,8 +66,8 @@ export default function Landing() {
       <main>
         <section data-stop className={stop}>
           <div className={say}>
-            <h1 className="text-[clamp(2rem,5.2vw,3.75rem)] font-semibold leading-[1.05] tracking-tight text-balance">
-              A thief with your key gets one day&apos;s allowance. The rest stays locked.
+            <h1 className="text-[clamp(1.875rem,4.6vw,3.25rem)] font-semibold leading-[1.08] tracking-tight text-balance">
+              If someone stole your seed phrase tonight, how much would be left by morning?
             </h1>
             <Actions drain={drain} />
           </div>

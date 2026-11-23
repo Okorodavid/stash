@@ -284,8 +284,9 @@ export function create(el: HTMLElement) {
   let shown: Sign | "coins" = "coins";
   return {
     el,
-    /** door: 0 open .. 1 shut. lock: 0..1 latches out. spin: wheel degrees. x: px travelled (the roll follows from it). */
-    set({ door = 1, lock = 0, spin = 0, x = 0 }: { door?: number; lock?: number; spin?: number; x?: number }) {
+    /** door: 0 open .. 1 shut. lock: 0..1 latches out. spin: wheel degrees. x: px travelled (the roll follows from it).
+        shift: px moved sideways without rolling, to make room for the open door. */
+    set({ door = 1, lock = 0, spin = 0, x = 0, shift = 0 }: { door?: number; lock?: number; spin?: number; x?: number; shift?: number }) {
       v.swing.rotation.y = OPEN_ANGLE * (1 - door);
       v.wheel.rotation.z = (-spin * Math.PI) / 180;
       v.latches.forEach((bar) => {
@@ -294,7 +295,7 @@ export function create(el: HTMLElement) {
       });
       const locked = lock > 0.98;
       v.lamp.material.color.set(locked ? 0x2dd4bf : 0xfbbf24);
-      move.style.transform = `translate3d(${x.toFixed(1)}px,0,0)`;
+      move.style.transform = `translate3d(${(x + shift).toFixed(1)}px,0,0)`;
       // A wheel that travels x turns x / r radians; anything else looks like sliding.
       v.rig.rotation.z = -x / (el.offsetWidth / 2);
       draw();

@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { LogoMark } from "../Logo";
 import type { Sign } from "./vault";
 
+// Start fetching the 3D code as soon as this file runs in the browser, not after the page hydrates.
+const loadVault = typeof window === "undefined" ? null : import("./vault");
+
 /** How far through its story the vault is once it has shut and locked (see story() in vault.ts). */
 const LOCKED = 0.7;
 const INTRO_MS = 2400;
@@ -15,21 +18,22 @@ const INTRO_MS = 2400;
  */
 export default function VaultStage() {
   const host = useRef<HTMLDivElement>(null);
-  const [live, setLive] = useState(false);
+  // "loading" shows nothing (the vault fades in when ready); "failed" (no WebGL) shows the still mark.
+  const [state, setState] = useState<"loading" | "live" | "failed">("loading");
 
   useEffect(() => {
     const el = host.current!;
     let stop = () => {};
     let gone = false;
-    import("./vault").then(({ create, story, clamp }) => {
+    loadVault!.then(({ create, story, clamp }) => {
       if (gone) return;
       let vault: ReturnType<typeof create>;
       try {
         vault = create(el);
       } catch {
-        return; // no WebGL: the still mark stays
+        return setState("failed");
       }
-      setLive(true);
+      setState("live");
       const stops = [...document.querySelectorAll<HTMLElement>("[data-stop]")];
       const last = stops.length - 1;
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -50,14 +54,19 @@ export default function VaultStage() {
         const f = still ? last : place();
         const i = clamp(Math.round(f), 0, last), c = f - i; // c: -0.5 rolling in .. 0 at the stop .. 0.5 rolling out
         const box = el.getBoundingClientRect();
+        // On a phone the vault sits in the middle, so it slides right as the door opens to keep the door on screen.
+        const room = innerWidth < 768 ? innerWidth * 0.13 : 0;
         let x = 0;
         if (c > 0.3 && i < last) x = ((c - 0.3) / 0.2) ** 2 * (innerWidth - box.left + 40);
         if (c < -0.3 && i > 0) x = -(((-c - 0.3) / 0.2) ** 2) * (box.right + 40);
         vault.show((stops[i].dataset.show as Sign | undefined) ?? "coins");
-        if (i === 0) return vault.set({ ...story(intro, 0), x });
+        if (i === 0) {
+          const s = story(intro, 0);
+          return vault.set({ ...s, x, shift: room * (1 - s.door) });
+        }
         // Feature stops swing wide open to show what is inside, then shut before rolling on.
         const open = i === last ? 0 : 0.85 * Math.cos((clamp(Math.abs(c) / 0.3) * Math.PI) / 2);
-        vault.set({ door: 1 - open, lock: 1 - clamp(open * 6), spin: -360 * open, x });
+        vault.set({ door: 1 - open, lock: 1 - clamp(open * 6), spin: -360 * open, x, shift: room * open });
       };
 
       let frame = 0;
@@ -96,10 +105,11 @@ export default function VaultStage() {
   }, []);
 
   return (
-    <div className="pointer-events-none fixed left-[60%] top-16 z-1 -translate-x-1/2 md:left-auto md:right-[clamp(-24px,3vw,72px)] md:top-1/2 md:translate-x-0 md:-translate-y-1/2">
-      <div className="relative size-[min(70vw,42vh)] md:size-[min(46vw,84vh,660px)]">
-        {!live && <LogoMark size={160} className="absolute inset-0 m-auto opacity-30" />}
-        <div ref={host} className="absolute inset-0" />
+    // Sized and placed to clear the header: centred on phones, right of the words on wide screens.
+    <div className="pointer-events-none fixed left-1/2 top-24 z-1 -translate-x-1/2 md:left-auto md:right-[clamp(-24px,3vw,72px)] md:top-[calc(50%+2rem)] md:translate-x-0 md:-translate-y-1/2">
+      <div className="relative size-[min(62vw,38svh)] md:size-[min(44vw,calc(100svh-12rem),640px)]">
+        {state === "failed" && <LogoMark size={160} className="absolute inset-0 m-auto opacity-30" />}
+        <div ref={host} className={`absolute inset-0 transition-opacity duration-500 ${state === "live" ? "opacity-100" : "opacity-0"}`} />
       </div>
     </div>
   );
