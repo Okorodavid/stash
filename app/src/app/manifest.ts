@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Stash",
     short_name: "Stash",
     description: "Save and gain interest. A stolen key or seed phrase can't drain you.",
-    start_url: "/",
+    start_url: "/vault",
     display: "standalone",
     background_color: "#0a0f0e",
     theme_color: "#0a0f0e",
