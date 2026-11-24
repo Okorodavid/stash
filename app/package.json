@@ -15,7 +15,7 @@
     "@solana-program/system": "^0.10.0",
     "@solana-program/token": "^0.9.0",
     "@solana/kit": "^5.5.1",
-    "next": "16.4.1",
+    "next": "16.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "three": "0.160.0",
@@ -28,7 +28,7 @@
     "@types/react-dom": "^19",
     "@types/three": "0.160.0",
     "eslint": "^9",
-    "eslint-config-next": "16.4.1",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

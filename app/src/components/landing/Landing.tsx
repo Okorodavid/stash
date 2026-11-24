@@ -48,6 +48,7 @@ export default function Landing() {
   const drain = !!process.env.NEXT_PUBLIC_DEMO_VAULT;
   return (
     <div data-theme="dark" className="relative flex-1 bg-background text-foreground">
+      {/* eslint-disable-next-line react/no-danger -- static script, no user input */}
       <script dangerouslySetInnerHTML={{ __html: forward }} />
       <header className="fixed inset-x-0 top-0 z-20 flex items-center justify-between gap-4 bg-background/80 px-4 py-3 backdrop-blur-md md:px-10">
         <span className="flex items-center gap-3">

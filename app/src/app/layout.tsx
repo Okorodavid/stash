@@ -36,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // data-theme is set by the boot script before React hydrates.
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
+        {/* eslint-disable-next-line react/no-danger -- static script, no user input */}
         <script dangerouslySetInnerHTML={{ __html: themeBoot }} />
         {/* Sign-in starts by calling Privy; open the connection while the app code downloads. */}
         <link rel="preconnect" href="https://auth.privy.io" crossOrigin="anonymous" />
