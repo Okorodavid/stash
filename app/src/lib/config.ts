@@ -1,4 +1,4 @@
-import { base, baseSepolia, tempo, tempoModerato } from "viem/chains";
+import { base, baseSepolia, bsc, bscTestnet, tempo, tempoModerato } from "viem/chains";
 import type { Address, Chain } from "viem";
 
 // Multicall3 (same address everywhere) is deployed on Tempo, but viem's Tempo chains don't list it.
@@ -46,6 +46,25 @@ export const NETWORKS = {
     factory: env(process.env.NEXT_PUBLIC_FACTORY_BASE),
     tokens: [{ symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 }],
   },
+  // BNB Chain hosts escrow only (paid in USDT). Testnet has no official USDT: the deploy names one.
+  bscTestnet: {
+    chain: bscTestnet,
+    factory: undefined,
+    tokens: env(process.env.NEXT_PUBLIC_ESCROW_TOKEN_BSC_TESTNET)
+      ? [
+          {
+            symbol: "USDT",
+            address: env(process.env.NEXT_PUBLIC_ESCROW_TOKEN_BSC_TESTNET)!,
+            decimals: Number(process.env.NEXT_PUBLIC_ESCROW_TOKEN_DECIMALS_BSC_TESTNET ?? 18),
+          },
+        ]
+      : [],
+  },
+  bsc: {
+    chain: bsc,
+    factory: undefined,
+    tokens: [{ symbol: "USDT", address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 }],
+  },
 } satisfies Record<string, Network>;
 
 export type NetworkKey = keyof typeof NETWORKS;
@@ -62,6 +81,8 @@ export const RPC_URLS: Record<NetworkKey, string[]> = {
   baseSepolia: [process.env.NEXT_PUBLIC_RPC_BASE_SEPOLIA, "https://base-sepolia-rpc.publicnode.com"].filter(
     (u): u is string => !!u,
   ),
+  bsc: [process.env.NEXT_PUBLIC_RPC_BSC, "https://bsc-rpc.publicnode.com"].filter((u): u is string => !!u),
+  bscTestnet: [process.env.NEXT_PUBLIC_RPC_BSC_TESTNET, "https://bsc-testnet-rpc.publicnode.com"].filter((u): u is string => !!u),
 };
 
 /**

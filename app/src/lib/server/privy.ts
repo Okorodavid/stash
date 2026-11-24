@@ -62,6 +62,28 @@ export async function updateCustomMetadata(userId: string, metadata: Record<stri
   if (!res.ok) throw new Error(`Privy metadata update failed (${res.status})`);
 }
 
+/** Every Ethereum address on the user's account (embedded and connected), lowercased. */
+export async function ethereumAddresses(userId: string): Promise<string[]> {
+  const res = await fetch(`https://api.privy.io/v1/users/${encodeURIComponent(userId)}`, {
+    headers: {
+      "privy-app-id": APP_ID,
+      Authorization: `Basic ${Buffer.from(`${APP_ID}:${APP_SECRET}`).toString("base64")}`,
+    },
+  });
+  if (!res.ok) throw new Error(`Privy user lookup failed (${res.status})`);
+  const user = (await res.json()) as { linked_accounts?: { type: string; chain_type?: string; address?: string }[] };
+  return (user.linked_accounts ?? [])
+    .filter((a) => a.type === "wallet" && a.chain_type === "ethereum" && a.address)
+    .map((a) => a.address!.toLowerCase());
+}
+
+/** The signed-in user's Ethereum addresses from the request's bearer token, or null when not signed in. */
+export async function requestAddresses(request: Request): Promise<string[] | null> {
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  const userId = token ? await verifyAccessToken(token) : null;
+  return userId ? ethereumAddresses(userId) : null;
+}
+
 /** The user's Privy-managed (embedded) Ethereum wallet address, looked up server-side. */
 export async function embeddedEthereumAddress(userId: string): Promise<string | null> {
   const res = await fetch(`https://api.privy.io/v1/users/${encodeURIComponent(userId)}`, {

@@ -15,7 +15,13 @@ const nextConfig: NextConfig = {
   // Dev only: keep Next's badge away from the phone tab bar at the bottom of the screen.
   devIndicators: { position: "top-right" },
   headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // Escrow files are written by strangers: opened directly, they can't run anything (later rules win).
+    const sandbox = [{ key: "Content-Security-Policy", value: "default-src 'none'; sandbox; frame-ancestors 'none'" }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/escrow/media/:name", headers: sandbox },
+      { source: "/api/escrow/file", headers: sandbox },
+    ];
   },
 };
 

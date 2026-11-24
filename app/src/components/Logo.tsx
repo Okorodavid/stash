@@ -26,8 +26,8 @@ export default function Logo({ suffix }: { suffix?: string }) {
   return (
     <span className="flex items-center gap-2">
       <LogoMark />
-      <span className="text-lg font-semibold tracking-tight">
-        stash{suffix && <span className="font-normal text-muted"> · {suffix}</span>}
+      <span className="text-lg font-semibold tracking-tight whitespace-nowrap">
+        stash{suffix && <span className="hidden font-normal text-muted sm:inline"> · {suffix}</span>}
       </span>
     </span>
   );
