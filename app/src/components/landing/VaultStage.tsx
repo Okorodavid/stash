@@ -25,8 +25,15 @@ export default function VaultStage() {
     const el = host.current!;
     let stop = () => {};
     let gone = false;
-    loadVault!.then(({ create, story, clamp }) => {
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let intro = still ? LOCKED : 0; // kept across rebuilds so a rebuilt vault doesn't replay its intro
+
+    // Phones drop the 3D canvas when the tab is hidden or memory runs low, and restore pages from the
+    // back/forward cache with a blank one. The vault only draws on change, so it would stay empty: rebuild it.
+    const mount = (mod: typeof import("./vault")) => {
       if (gone) return;
+      const { create, story, clamp } = mod;
+      const rebuilding = intro > 0;
       let vault: ReturnType<typeof create>;
       try {
         vault = create(el);
@@ -34,10 +41,22 @@ export default function VaultStage() {
         return setState("failed");
       }
       setState("live");
+      const rebuild = () => {
+        stop();
+        stop = () => {};
+        intro = LOCKED;
+        setTimeout(() => mount(mod), 300);
+      };
+      const lost = (e: Event) => {
+        e.preventDefault();
+        rebuild();
+      };
+      const back = (e: PageTransitionEvent) => e.persisted && rebuild();
+      const canvas = el.querySelector("canvas")!;
+      canvas.addEventListener("webglcontextlost", lost);
+      addEventListener("pageshow", back);
       const stops = [...document.querySelectorAll<HTMLElement>("[data-stop]")];
       const last = stops.length - 1;
-      const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      let intro = still ? LOCKED : 0;
 
       /** Where the page is, in stops: whole numbers are a section at the top, halves are between two. */
       const place = () => {
@@ -75,8 +94,8 @@ export default function VaultStage() {
         frame = requestAnimationFrame(draw);
       };
       let timer = 0, introFrame = 0; // the intro keeps its own frame so scrolling can't cancel it
-      if (!still) {
-        addEventListener("scroll", ask, { passive: true });
+      if (!still) addEventListener("scroll", ask, { passive: true });
+      if (!still && !rebuilding) {
         timer = window.setTimeout(() => {
           const start = performance.now();
           const tick = (now: number) => {
@@ -95,9 +114,16 @@ export default function VaultStage() {
         cancelAnimationFrame(introFrame);
         removeEventListener("scroll", ask);
         removeEventListener("resize", ask);
+        removeEventListener("pageshow", back);
+        canvas.removeEventListener("webglcontextlost", lost);
         vault.dispose();
       };
-    });
+    };
+
+    // A dropped download on a weak connection would leave the vault invisible: try once more, then show the still mark.
+    loadVault!
+      .catch(() => new Promise((r) => setTimeout(r, 1500)).then(() => import("./vault")))
+      .then(mount, () => !gone && setState("failed"));
     return () => {
       gone = true;
       stop();
